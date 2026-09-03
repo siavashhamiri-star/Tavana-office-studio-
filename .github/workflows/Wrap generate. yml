@@ -1,0 +1,100 @@
+name: Generate Gradle Wrapper 8.5
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate-wrapper:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Download Gradle 8.5
+        run: |
+          curl -fL \
+            -o /tmp/gradle-8.5-bin.zip \
+            https://services.gradle.org/distributions/gradle-8.5-bin.zip
+
+          mkdir -p /tmp/gradle
+          unzip -q /tmp/gradle-8.5-bin.zip -d /tmp/gradle
+
+          /tmp/gradle/gradle-8.5/bin/gradle --version
+
+      - name: Generate a real Gradle Wrapper
+        run: |
+          rm -rf /tmp/wrapper-generator
+          mkdir -p /tmp/wrapper-generator
+
+          cat > /tmp/wrapper-generator/settings.gradle <<'EOF'
+          rootProject.name = 'wrapper-generator'
+          EOF
+
+          cat > /tmp/wrapper-generator/build.gradle <<'EOF'
+          EOF
+
+          cd /tmp/wrapper-generator
+
+          /tmp/gradle/gradle-8.5/bin/gradle \
+            wrapper \
+            --gradle-version 8.5 \
+            --distribution-type bin \
+            --no-daemon
+
+      - name: Install Wrapper into repository
+        run: |
+          cp /tmp/wrapper-generator/gradlew ./gradlew
+          cp /tmp/wrapper-generator/gradlew.bat ./gradlew.bat
+
+          mkdir -p ./gradle/wrapper
+
+          cp \
+            /tmp/wrapper-generator/gradle/wrapper/gradle-wrapper.jar \
+            ./gradle/wrapper/gradle-wrapper.jar
+
+          cp \
+            /tmp/wrapper-generator/gradle/wrapper/gradle-wrapper.properties \
+            ./gradle/wrapper/gradle-wrapper.properties
+
+          chmod +x ./gradlew
+
+          echo "=== Wrapper files ==="
+          ls -lh ./gradlew
+          ls -lh ./gradlew.bat
+          ls -lh ./gradle/wrapper/
+
+      - name: Verify Gradle Wrapper
+        run: |
+          ./gradlew --version --no-daemon
+
+      - name: Commit and push Wrapper files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            gradlew \
+            gradlew.bat \
+            gradle/wrapper/gradle-wrapper.jar \
+            gradle/wrapper/gradle-wrapper.properties
+
+          if git diff --cached --quiet; then
+            echo "No Wrapper changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Fix: add Gradle 8.5 Wrapper"
+
+          git push origin HEAD:main
