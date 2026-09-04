@@ -44,6 +44,10 @@ import com.tavana.studio.audio.project.TrackType
 import com.tavana.studio.audio.voice.InMemoryVoiceProfileRepository
 import com.tavana.studio.audio.voice.VoiceProfile
 import com.tavana.studio.audio.voice.VoiceProfileRepository
+import com.tavana.studio.foundation.accessibility.AccessibilityProfile
+import com.tavana.studio.foundation.i18n.AppLanguage
+import com.tavana.studio.foundation.offline.NetworkState
+import com.tavana.studio.foundation.offline.OfflineLimitation
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,6 +73,10 @@ data class AvaUiState(
     val isKaraokeScreenActive: Boolean = false,
     val activeScoreDialog: VocalScore? = null,
     val isPersianRtlEnabled: Boolean = false,
+    val appLanguage: AppLanguage = if (isPersianRtlEnabled) AppLanguage.FA else AppLanguage.EN,
+    val accessibilityProfile: AccessibilityProfile = AccessibilityProfile(),
+    val networkState: NetworkState = NetworkState(isOnline = false),
+    val activeOfflineLimitation: OfflineLimitation? = null,
     val activePracticeExercise: PracticeExercise? = null,
     // TAVANA Audio Foundation Extensions
     val activeWorkspace: Workspace = Workspace(
@@ -420,7 +428,40 @@ class AvaViewModel(
     }
 
     fun togglePersianRtl() {
-        _uiState.update { it.copy(isPersianRtlEnabled = !it.isPersianRtlEnabled) }
+        _uiState.update {
+            val nextRtl = !it.isPersianRtlEnabled
+            it.copy(
+                isPersianRtlEnabled = nextRtl,
+                appLanguage = if (nextRtl) AppLanguage.FA else AppLanguage.EN
+            )
+        }
+    }
+
+    fun setAppLanguage(language: AppLanguage) {
+        _uiState.update {
+            it.copy(
+                appLanguage = language,
+                isPersianRtlEnabled = language.isRtl
+            )
+        }
+    }
+
+    fun updateAccessibilityProfile(transform: (AccessibilityProfile) -> AccessibilityProfile) {
+        _uiState.update {
+            it.copy(accessibilityProfile = transform(it.accessibilityProfile))
+        }
+    }
+
+    fun setNetworkConnectivity(isOnline: Boolean) {
+        _uiState.update {
+            it.copy(networkState = it.networkState.copy(isOnline = isOnline))
+        }
+    }
+
+    fun setOfflineLimitation(limitation: OfflineLimitation?) {
+        _uiState.update {
+            it.copy(activeOfflineLimitation = limitation)
+        }
     }
 
     private fun startPlayback() {

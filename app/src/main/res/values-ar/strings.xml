@@ -1,0 +1,28 @@
+<resources>
+    <string name="app_name">استوديو توانا</string>
+    <string name="tagline">حياتك وعملك الرقمي</string>
+
+    <!-- Navigation Tabs -->
+    <string name="tab_stage">المسرح</string>
+    <string name="tab_practice">التدريب</string>
+    <string name="tab_recordings">التسجيلات</string>
+    <string name="tab_studio">الاستوديو</string>
+
+    <!-- Actions -->
+    <string name="action_record">تسجيل</string>
+    <string name="action_stop">إيقاف</string>
+    <string name="action_play">تشغيل</string>
+    <string name="action_pause">إيقاف مؤقت</string>
+    <string name="action_save_take">حفظ المقطع</string>
+    <string name="action_sing_again">إعادة الغناء</string>
+
+    <!-- Accessibility -->
+    <string name="a11y_record_button">بدء تسجيل الصوت</string>
+    <string name="a11y_stop_button">إيقاف التسجيل وتقييم الأداء</string>
+    <string name="a11y_volume_slider">تعديل شريط تمرير مستوى الصوت</string>
+    <string name="a11y_waveform_display">مخطط مرئي لموجة الصوت</string>
+
+    <!-- Offline Status -->
+    <string name="offline_local_storage_ready">التخزين المحلي والمعالجة الصوتية دون اتصال تعمل بنجاح</string>
+    <string name="offline_limitation_cloud_sync">المزامنة السحابية تتطلب اتصالاً بالإنترنت</string>
+</resources>

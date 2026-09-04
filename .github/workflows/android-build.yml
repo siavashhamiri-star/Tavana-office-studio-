@@ -39,6 +39,21 @@ jobs:
       - name: Make Gradle executable
         run: chmod +x ./gradlew
 
+      - name: Automate AI API Keys and Secrets (.env)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          echo "=== Configuring Environment Secrets (.env) ==="
+          if [ -n "$GEMINI_API_KEY" ]; then
+            echo "GEMINI_API_KEY=$GEMINI_API_KEY" > .env
+            echo "GEMINI_API_KEY securely configured from GitHub Secrets."
+          elif [ -f .env.example ]; then
+            cp .env.example .env
+            echo "Initialized .env from template (.env.example)."
+          else
+            echo "GEMINI_API_KEY=MY_GEMINI_API_KEY" > .env
+          fi
+
       - name: Show Gradle version
         run: ./gradlew --version
 
@@ -48,18 +63,14 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew :app:assembleDebug --stacktrace --no-daemon
 
-      - name: Build Debug AAB
+      - name: Build AAB Bundle
         run: ./gradlew :app:bundleDebug --stacktrace --no-daemon
 
-      - name: Verify APK
+      - name: Verify APK and AAB
         run: |
-          test -f app/build/outputs/apk/debug/app-debug.apk
-          ls -lh app/build/outputs/apk/debug/app-debug.apk
-
-      - name: Verify AAB
-        run: |
-          test -f app/build/outputs/bundle/debug/app-debug.aab
-          ls -lh app/build/outputs/bundle/debug/app-debug.aab
+          echo "=== Verifying Artifacts ==="
+          test -f app/build/outputs/apk/debug/app-debug.apk && ls -lh app/build/outputs/apk/debug/app-debug.apk
+          test -f app/build/outputs/bundle/debug/app-debug.aab && ls -lh app/build/outputs/bundle/debug/app-debug.aab
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

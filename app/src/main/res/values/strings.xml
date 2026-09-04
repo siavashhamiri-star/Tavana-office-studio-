@@ -1,4 +1,28 @@
 <resources>
     <string name="app_name">TAVANA Studio</string>
     <string name="tagline">Your Digital Life &amp; Work</string>
+    
+    <!-- Navigation Tabs -->
+    <string name="tab_stage">Stage</string>
+    <string name="tab_practice">Practice</string>
+    <string name="tab_recordings">Recordings</string>
+    <string name="tab_studio">Studio</string>
+
+    <!-- Actions -->
+    <string name="action_record">Record</string>
+    <string name="action_stop">Stop</string>
+    <string name="action_play">Play</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_save_take">Save Take</string>
+    <string name="action_sing_again">Sing Again</string>
+
+    <!-- Accessibility -->
+    <string name="a11y_record_button">Start vocal recording</string>
+    <string name="a11y_stop_button">Stop recording and evaluate</string>
+    <string name="a11y_volume_slider">Adjust audio volume fader</string>
+    <string name="a11y_waveform_display">Audio level waveform visualizer</string>
+    
+    <!-- Offline Status -->
+    <string name="offline_local_storage_ready">Local storage and offline audio processing active</string>
+    <string name="offline_limitation_cloud_sync">Cloud backup requires internet connectivity</string>
 </resources>

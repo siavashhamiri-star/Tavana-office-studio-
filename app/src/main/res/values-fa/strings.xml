@@ -1,0 +1,28 @@
+<resources>
+    <string name="app_name">استودیو توانا</string>
+    <string name="tagline">زندگی و کار دیجیتال شما</string>
+
+    <!-- Navigation Tabs -->
+    <string name="tab_stage">استیج</string>
+    <string name="tab_practice">تمرین</string>
+    <string name="tab_recordings">ضبط‌ها</string>
+    <string name="tab_studio">استودیو</string>
+
+    <!-- Actions -->
+    <string name="action_record">ضبط</string>
+    <string name="action_stop">توقف</string>
+    <string name="action_play">پخش</string>
+    <string name="action_pause">مکث</string>
+    <string name="action_save_take">ذخیره برداشت</string>
+    <string name="action_sing_again">خواندن مجدد</string>
+
+    <!-- Accessibility -->
+    <string name="a11y_record_button">شروع ضبط صدا</string>
+    <string name="a11y_stop_button">توقف ضبط و ارزیابی اجرای آوازی</string>
+    <string name="a11y_volume_slider">تنظیم فیدر حجم صدا</string>
+    <string name="a11y_waveform_display">نمایشگر بصری شکل موج سیگنال صوتی</string>
+
+    <!-- Offline Status -->
+    <string name="offline_local_storage_ready">حافظه محلی و موتور صوتی آفلاین فعال است</string>
+    <string name="offline_limitation_cloud_sync">همگام‌سازی ابری نیازمند اتصال به اینترنت است</string>
+</resources>

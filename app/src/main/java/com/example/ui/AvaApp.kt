@@ -27,6 +27,10 @@ import com.example.ui.screens.RecordingsScreen
 import com.example.ui.screens.StudioScreen
 import com.example.ui.theme.AvaTheme
 import com.example.ui.viewmodel.AvaViewModel
+import com.tavana.studio.foundation.accessibility.LocalAccessibilityProfile
+import com.tavana.studio.foundation.i18n.LocalAppLanguage
+import com.tavana.studio.foundation.i18n.LocalTavanaStrings
+import com.tavana.studio.foundation.i18n.TavanaStringsRegistry
 
 @Composable
 fun AvaApp(
@@ -37,10 +41,17 @@ fun AvaApp(
     val recordings by viewModel.recordings.collectAsState()
     val exercises by viewModel.practiceExercises.collectAsState()
 
-    val layoutDirection = if (uiState.isPersianRtlEnabled) LayoutDirection.Rtl else LayoutDirection.Ltr
+    val currentLanguage = uiState.appLanguage
+    val localizedStrings = TavanaStringsRegistry.getStrings(currentLanguage)
+    val layoutDirection = if (currentLanguage.isRtl || uiState.isPersianRtlEnabled) LayoutDirection.Rtl else LayoutDirection.Ltr
 
     AvaTheme {
-        CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
+        CompositionLocalProvider(
+            LocalLayoutDirection provides layoutDirection,
+            LocalAppLanguage provides currentLanguage,
+            LocalTavanaStrings provides localizedStrings,
+            LocalAccessibilityProfile provides uiState.accessibilityProfile
+        ) {
             if (uiState.isKaraokeScreenActive) {
                 // Immersive Karaoke Singing Stage
                 KaraokeStageScreen(
