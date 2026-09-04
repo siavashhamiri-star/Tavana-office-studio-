@@ -27,10 +27,11 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-36 build-tools;36.0.0 platform-tools'
 
       - name: Accept Android SDK licenses
         run: |
-          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/tools/bin
           yes | sdkmanager --licenses || true
 
       - name: Make Gradle executable
@@ -48,19 +49,21 @@ jobs:
           fi
           test -f debug.keystore && ls -lh debug.keystore
 
-      - name: Automate AI API Keys and Secrets (.env)
+      - name: Configure Client AI Gateway Environment (.env)
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          AI_GATEWAY_URL: ${{ secrets.AI_GATEWAY_URL }}
         run: |
-          echo "=== Configuring Environment Secrets (.env) ==="
-          if [ -n "$GEMINI_API_KEY" ]; then
-            echo "GEMINI_API_KEY=$GEMINI_API_KEY" > .env
-            echo "GEMINI_API_KEY securely configured from GitHub Secrets."
+          echo "=== Configuring Client AI Gateway Environment ==="
+          if [ -n "$AI_GATEWAY_URL" ]; then
+            echo "AI_GATEWAY_URL=$AI_GATEWAY_URL" > .env
+            echo "AI_GATEWAY_ENV=production" >> .env
+            echo "AI_GATEWAY_URL configured from repository secrets."
           elif [ -f .env.example ]; then
             cp .env.example .env
-            echo "Initialized .env from template (.env.example)."
+            echo "Initialized .env from .env.example template."
           else
-            echo "GEMINI_API_KEY=MY_GEMINI_API_KEY" > .env
+            echo "AI_GATEWAY_URL=https://gateway.tavana.studio/api/v1/ai" > .env
+            echo "AI_GATEWAY_ENV=production" >> .env
           fi
 
       - name: Show Gradle version

@@ -48,6 +48,11 @@ import com.tavana.studio.foundation.accessibility.AccessibilityProfile
 import com.tavana.studio.foundation.i18n.AppLanguage
 import com.tavana.studio.foundation.offline.NetworkState
 import com.tavana.studio.foundation.offline.OfflineLimitation
+import com.tavana.studio.foundation.offline.OfflineSafetyGuard
+import com.tavana.studio.foundation.offline.StudioFeature
+import com.tavana.studio.ai.gateway.AiGatewayVocalRequest
+import com.tavana.studio.ai.gateway.HttpSecureAiGateway
+import com.tavana.studio.ai.gateway.SecureAiGateway
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -90,7 +95,9 @@ data class AvaUiState(
     val masterVolume: Float = 1.0f,
     val voiceProfile: VoiceProfile? = null,
     val latestRecordedTakeFile: String? = null,
-    val exportStatus: String? = null
+    val exportStatus: String? = null,
+    val aiGatewayFeedback: String? = null,
+    val isAiFeedbackLoading: Boolean = false
 )
 
 class AvaViewModel(
@@ -101,7 +108,8 @@ class AvaViewModel(
     private val audioAnalyzer: AudioAnalyzer = AutocorrelationPitchDetector(),
     private val projectRepository: ProjectRepository = InMemoryProjectRepository(),
     private val voiceProfileRepository: VoiceProfileRepository = InMemoryVoiceProfileRepository(),
-    private val exportEngine: ExportEngine = DefaultExportEngine(audioMixer)
+    private val exportEngine: ExportEngine = DefaultExportEngine(audioMixer),
+    private val secureAiGateway: SecureAiGateway = HttpSecureAiGateway()
 ) : ViewModel() {
 
     private val currentIdentity = Identity(
@@ -556,6 +564,59 @@ class AvaViewModel(
             badge = badge,
             feedback = detResult.feedback
         )
+    }
+
+    /**
+     * Dispatches singing metrics through the Secure AI Gateway without any client-side API key.
+     * Guaranteed safe offline fallback prevents crashes if gateway or connection is unavailable.
+     */
+    fun requestAiVocalFeedback() {
+        val activeScore = _uiState.value.activeScoreDialog ?: calculateDeterministicScore()
+        _uiState.update { it.copy(isAiFeedbackLoading = true) }
+
+        viewModelScope.launch {
+            val isOnline = _uiState.value.networkState.isOnline
+            val fallbackFeedback = activeScore.feedback
+
+            OfflineSafetyGuard.executeSafe(
+                isOnline = isOnline && secureAiGateway.isConfigured(),
+                onLocalFallback = {
+                    _uiState.update {
+                        it.copy(
+                            isAiFeedbackLoading = false,
+                            aiGatewayFeedback = fallbackFeedback,
+                            activeOfflineLimitation = if (!isOnline) OfflineSafetyGuard.getLimitationNotice(StudioFeature.REMOTE_AI_GENERATION) else null
+                        )
+                    }
+                },
+                onCloudAction = {
+                    val request = AiGatewayVocalRequest(
+                        overallScore = activeScore.overall,
+                        pitchAccuracy = activeScore.pitch,
+                        timingAccuracy = activeScore.rhythm,
+                        stabilityScore = activeScore.expression,
+                        detectedKey = _uiState.value.activeSong.title,
+                        languageCode = _uiState.value.appLanguage.code
+                    )
+                    val result = secureAiGateway.requestVocalCoachFeedback(request)
+                    result.onSuccess { response ->
+                        _uiState.update {
+                            it.copy(
+                                isAiFeedbackLoading = false,
+                                aiGatewayFeedback = response.feedback
+                            )
+                        }
+                    }.onFailure {
+                        _uiState.update {
+                            it.copy(
+                                isAiFeedbackLoading = false,
+                                aiGatewayFeedback = fallbackFeedback
+                            )
+                        }
+                    }
+                }
+            )
+        }
     }
 
     override fun onCleared() {
