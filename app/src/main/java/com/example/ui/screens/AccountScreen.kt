@@ -42,10 +42,15 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.components.ActiveSubscriptionCard
 import com.example.ui.components.AvaCard
 import com.example.ui.components.AvaPrimaryButton
 import com.example.ui.components.AvaSecondaryButton
 import com.example.ui.components.CoinsBalanceCard
+import com.example.ui.components.LanguageSwitcherSection
+import com.example.ui.components.MarketplacePlansGrid
+import com.example.ui.components.MarketplaceProviderToggle
+import com.example.ui.components.ReferralCard
 import com.example.ui.components.SubscriptionBadge
 import com.example.ui.components.TierComparisonCards
 import com.example.ui.components.TransactionHistoryItem
@@ -54,10 +59,21 @@ import com.example.ui.theme.AvaTheme
 import com.tavana.studio.account.AuthProviderType
 import com.tavana.studio.account.SubscriptionTier
 import com.tavana.studio.account.UserAccount
+import com.tavana.studio.account.billing.MarketplaceSubscriptionPlan
+import com.tavana.studio.account.billing.MarketplaceType
+import com.tavana.studio.foundation.i18n.AppLanguage
 
 @Composable
 fun AccountScreen(
     userAccount: UserAccount,
+    selectedMarketplace: MarketplaceType = MarketplaceType.BAZAAR,
+    availablePlans: List<MarketplaceSubscriptionPlan> = emptyList(),
+    currentLanguage: AppLanguage = AppLanguage.FA,
+    onSelectMarketplace: (MarketplaceType) -> Unit = {},
+    onPurchasePlan: (MarketplaceSubscriptionPlan) -> Unit = {},
+    onRestorePurchases: () -> Unit = {},
+    onApplyReferralCode: (String) -> Unit = {},
+    onSelectLanguage: (AppLanguage) -> Unit = {},
     onSignInGoogle: () -> Unit,
     onSignInPhone: () -> Unit,
     onLinkGoogle: () -> Unit,
@@ -82,12 +98,12 @@ fun AccountScreen(
             ) {
                 Column {
                     Text(
-                        text = "پروفایل و حساب کاربری",
+                        text = "پروفایل و اشتراک استودیو",
                         style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = "مدیریت اشتراک، کیف پول سکه و حساب متصل",
+                        text = "مدیریت خرید اشتراک از مارکت‌پلیس، سکه‌ها، رفرال و زبان",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -95,6 +111,64 @@ fun AccountScreen(
 
                 SubscriptionBadge(tier = userAccount.subscriptionTier)
             }
+        }
+
+        // Active Subscription Status & Restore Purchase
+        item(key = "active_subscription_card") {
+            ActiveSubscriptionCard(
+                userAccount = userAccount,
+                onRestorePurchases = onRestorePurchases
+            )
+        }
+
+        // Marketplace Provider Switcher (Bazaar vs Myket)
+        item(key = "marketplace_provider_toggle") {
+            Column {
+                Text(
+                    text = "انتخاب مارکت‌پلیس خرید اشتراک:",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                MarketplaceProviderToggle(
+                    selected = selectedMarketplace,
+                    onSelect = onSelectMarketplace
+                )
+            }
+        }
+
+        // Marketplace Plans Showcase (1, 3, 6, 9, 12, 24 months)
+        item(key = "marketplace_plans_grid") {
+            MarketplacePlansGrid(
+                plans = availablePlans,
+                activeTier = userAccount.subscriptionTier,
+                selectedMarketplace = selectedMarketplace,
+                onPurchasePlan = onPurchasePlan
+            )
+        }
+
+        // Coins Balance Card (Separate from subscriptions)
+        item(key = "coins_card") {
+            CoinsBalanceCard(
+                balance = userAccount.coinsBalance,
+                onTopUpClick = onTopUpCoins
+            )
+        }
+
+        // Referral System Card (دستور ۳)
+        item(key = "referral_card") {
+            ReferralCard(
+                userAccount = userAccount,
+                onApplyCode = onApplyReferralCode
+            )
+        }
+
+        // Language & Localization Selector (دستور ۳ - ۸ زبان)
+        item(key = "language_switcher") {
+            LanguageSwitcherSection(
+                currentLanguage = currentLanguage,
+                onSelectLanguage = onSelectLanguage
+            )
         }
 
         // Profile Card

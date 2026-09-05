@@ -271,6 +271,66 @@ class AccountRepository(
     }
 
     /**
+     * Activates or extends a verified Marketplace subscription in the central UserAccount.
+     * Keeps Coins and Subscriptions strictly separated.
+     */
+    fun activateMarketplaceSubscription(
+        tier: SubscriptionTier,
+        durationDays: Int,
+        planId: String,
+        marketplace: String,
+        orderId: String
+    ): UserAccount {
+        val currentExpiry = _currentUser.value.tierExpiryTimestamp
+        val baseTime = if (currentExpiry != null && currentExpiry > System.currentTimeMillis() && _currentUser.value.subscriptionTier == tier) {
+            currentExpiry // extend active subscription
+        } else {
+            System.currentTimeMillis()
+        }
+        val newExpiry = baseTime + (durationDays.toLong() * 24 * 60 * 60 * 1000)
+
+        _currentUser.update {
+            it.copy(
+                subscriptionTier = tier,
+                tierExpiryTimestamp = newExpiry,
+                activeSubscriptionPlanId = planId,
+                marketplaceProvider = marketplace,
+                lastOrderId = orderId
+            )
+        }
+        return _currentUser.value
+    }
+
+    /**
+     * Applies a referral bonus and discount to the user account.
+     */
+    fun applyReferralSuccess(
+        appliedCode: String,
+        bonusCoins: Int,
+        discountPercent: Int
+    ): UserAccount {
+        val current = _currentUser.value
+        val newBalance = current.coinsBalance + bonusCoins
+        val tx = CoinTransaction(
+            type = CoinTransactionType.REFERRAL_REWARD,
+            amount = bonusCoins,
+            featureKey = "referral_welcome_bonus",
+            description = "پاداش معرفی با کد $appliedCode",
+            balanceAfter = newBalance
+        )
+
+        _currentUser.update {
+            it.copy(
+                referredByCode = appliedCode,
+                coinsBalance = newBalance,
+                activeDiscountPercent = discountPercent,
+                transactions = listOf(tx) + it.transactions
+            )
+        }
+        return _currentUser.value
+    }
+
+    /**
      * Upgrades or changes subscription tier (FREE, PLUS, PRO).
      */
     fun upgradeSubscriptionTier(

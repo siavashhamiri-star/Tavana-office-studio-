@@ -223,15 +223,16 @@ object TavanaStringsRegistry {
         return when (language) {
             AppLanguage.FA -> PersianStrings
             AppLanguage.AR -> ArabicStrings
-            AppLanguage.EN,
+            AppLanguage.EN -> EnglishStrings
+            AppLanguage.ES -> SpanishStrings
+            AppLanguage.TR -> TurkishStrings
+            AppLanguage.HI -> HindiStrings
+            AppLanguage.TH -> ThaiStrings
+            AppLanguage.TL -> FilipinoStrings
             AppLanguage.FR,
-            AppLanguage.ES,
             AppLanguage.DE,
             AppLanguage.RU,
-            AppLanguage.HI,
-            AppLanguage.ZH,
-            AppLanguage.TL,
-            AppLanguage.TH -> EnglishStrings
+            AppLanguage.ZH -> EnglishStrings
         }
     }
 }

@@ -66,6 +66,17 @@ import com.tavana.studio.account.FeatureAccessManager
 import com.tavana.studio.account.FeatureKey
 import com.tavana.studio.account.SubscriptionTier
 import com.tavana.studio.account.UserAccount
+import com.tavana.studio.account.ReferralManager
+import com.tavana.studio.account.ReferralRedeemResult
+import com.tavana.studio.account.AdminConfigRepository
+import com.tavana.studio.account.AppMonetizationConfig
+import com.tavana.studio.account.billing.MarketplaceBillingManager
+import com.tavana.studio.account.billing.MarketplacePlanCatalog
+import com.tavana.studio.account.billing.MarketplacePurchaseRecord
+import com.tavana.studio.account.billing.MarketplaceSubscriptionPlan
+import com.tavana.studio.account.billing.MarketplaceType
+import com.tavana.studio.account.billing.PurchaseFlowResult
+import com.tavana.studio.account.billing.PurchaseStatus
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -121,7 +132,12 @@ data class AvaUiState(
     val isPhoneCodeSent: Boolean = false,
     val pendingPhoneForAuth: String? = null,
     val isLinkingMode: Boolean = false,
-    val accountNotification: String? = null
+    val accountNotification: String? = null,
+    val selectedMarketplace: MarketplaceType = MarketplaceType.BAZAAR,
+    val purchaseStatus: PurchaseStatus = PurchaseStatus.IDLE,
+    val billingMessage: String? = null,
+    val availablePlans: List<MarketplaceSubscriptionPlan> = MarketplacePlanCatalog.ALL_PLANS,
+    val isPlansDialogOpen: Boolean = false
 )
 
 data class ActiveFeatureGateState(
@@ -141,7 +157,10 @@ class AvaViewModel(
     private val exportEngine: ExportEngine = DefaultExportEngine(audioMixer),
     private val secureAiGateway: SecureAiGateway = HttpSecureAiGateway(),
     private val accountRepository: AccountRepository = AccountRepository(),
-    private val featureAccessManager: FeatureAccessManager = FeatureAccessManager()
+    private val featureAccessManager: FeatureAccessManager = FeatureAccessManager(),
+    private val marketplaceBillingManager: MarketplaceBillingManager = MarketplaceBillingManager(accountRepository),
+    private val referralManager: ReferralManager = ReferralManager(accountRepository),
+    private val adminConfigRepository: AdminConfigRepository = AdminConfigRepository()
 ) : ViewModel() {
 
     private val currentIdentity = Identity(
@@ -717,6 +736,93 @@ class AvaViewModel(
         viewModelScope.launch {
             accountRepository.currentUser.collect { user ->
                 _uiState.update { it.copy(userAccount = user) }
+            }
+        }
+        viewModelScope.launch {
+            marketplaceBillingManager.selectedProvider.collect { prov ->
+                _uiState.update { it.copy(selectedMarketplace = prov) }
+            }
+        }
+        viewModelScope.launch {
+            marketplaceBillingManager.purchaseStatus.collect { status ->
+                _uiState.update { it.copy(purchaseStatus = status) }
+            }
+        }
+        viewModelScope.launch {
+            marketplaceBillingManager.billingMessage.collect { msg ->
+                _uiState.update { it.copy(billingMessage = msg) }
+            }
+        }
+    }
+
+    // --- MARKETPLACE BILLING & SUBSCRIPTIONS ---
+
+    fun selectMarketplaceProvider(provider: MarketplaceType) {
+        marketplaceBillingManager.selectProvider(provider)
+    }
+
+    fun purchaseSubscriptionPlan(context: Context, plan: MarketplaceSubscriptionPlan) {
+        viewModelScope.launch {
+            marketplaceBillingManager.purchasePlan(context, plan, _uiState.value.userAccount)
+        }
+    }
+
+    fun restorePurchases(context: Context) {
+        viewModelScope.launch {
+            marketplaceBillingManager.restorePurchases(context, _uiState.value.userAccount)
+        }
+    }
+
+    fun dismissBillingMessage() {
+        marketplaceBillingManager.dismissBillingMessage()
+    }
+
+    fun openPlansDialog() {
+        _uiState.update { it.copy(isPlansDialogOpen = true) }
+    }
+
+    fun closePlansDialog() {
+        _uiState.update { it.copy(isPlansDialogOpen = false) }
+    }
+
+    // --- REFERRAL SYSTEM ---
+
+    fun applyReferralCode(rawCode: String) {
+        val result = referralManager.redeemReferralCode(rawCode)
+        when (result) {
+            is ReferralRedeemResult.Success -> {
+                _uiState.update { it.copy(accountNotification = result.message) }
+            }
+            is ReferralRedeemResult.Error -> {
+                _uiState.update { it.copy(accountNotification = result.errorMessage) }
+            }
+        }
+    }
+
+    // --- LOCALIZATION SWITCHER ---
+
+    fun changeAppLanguage(language: AppLanguage) {
+        _uiState.update {
+            it.copy(
+                appLanguage = language,
+                isPersianRtlEnabled = language.isRtl
+            )
+        }
+    }
+
+    // --- ADMIN / OWNER MONETIZATION CONFIG ---
+
+    fun updateMonetizationConfig(newConfig: AppMonetizationConfig) {
+        val currentUser = _uiState.value.userAccount
+        val res = adminConfigRepository.updateMonetizationConfig(currentUser, newConfig)
+        res.onSuccess {
+            featureAccessManager.updateConfig(it)
+            _uiState.update { state ->
+                state.copy(accountNotification = "پیکربندی پلن‌ها و هزینه‌ها توسط مدیر با موفقیت ذخیره شد.")
+            }
+        }.onFailure { err ->
+            _uiState.update { state ->
+                state.copy(accountNotification = "خطا در ویرایش پیکربندی مدیر: ${err.message}")
             }
         }
     }

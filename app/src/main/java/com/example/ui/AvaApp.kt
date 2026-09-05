@@ -171,8 +171,17 @@ fun AvaApp(
                                     )
                                 }
                                 AvaNavDestination.ACCOUNT -> {
+                                    val context = androidx.compose.ui.platform.LocalContext.current
                                     AccountScreen(
                                         userAccount = uiState.userAccount,
+                                        selectedMarketplace = uiState.selectedMarketplace,
+                                        availablePlans = uiState.availablePlans,
+                                        currentLanguage = uiState.appLanguage,
+                                        onSelectMarketplace = { viewModel.selectMarketplaceProvider(it) },
+                                        onPurchasePlan = { plan -> viewModel.purchaseSubscriptionPlan(context, plan) },
+                                        onRestorePurchases = { viewModel.restorePurchases(context) },
+                                        onApplyReferralCode = { code -> viewModel.applyReferralCode(code) },
+                                        onSelectLanguage = { lang -> viewModel.changeAppLanguage(lang) },
                                         onSignInGoogle = { viewModel.signInWithGoogle() },
                                         onSignInPhone = { viewModel.openPhoneAuthDialog(isLinking = false) },
                                         onLinkGoogle = { viewModel.linkGoogleAccount() },
@@ -229,6 +238,20 @@ fun AvaApp(
                         confirmButton = {
                             TextButton(onClick = { viewModel.dismissAccountNotification() }) {
                                 Text("باشه")
+                            }
+                        }
+                    )
+                }
+
+                // Marketplace Billing Feedback Dialog
+                uiState.billingMessage?.let { billingMsg ->
+                    AlertDialog(
+                        onDismissRequest = { viewModel.dismissBillingMessage() },
+                        title = { Text("خرید و فعال‌سازی اشتراک") },
+                        text = { Text(billingMsg) },
+                        confirmButton = {
+                            TextButton(onClick = { viewModel.dismissBillingMessage() }) {
+                                Text("متوجه شدم")
                             }
                         }
                     )

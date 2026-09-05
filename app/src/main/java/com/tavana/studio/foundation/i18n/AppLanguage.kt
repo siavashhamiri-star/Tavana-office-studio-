@@ -21,7 +21,8 @@ enum class AppLanguage(
     HI(code = "hi", nativeName = "हिन्दी", englishName = "Hindi", isRtl = false, script = UnicodeScript.DEVANAGARI),
     ZH(code = "zh", nativeName = "中文", englishName = "Chinese", isRtl = false, script = UnicodeScript.HAN),
     TL(code = "tl", nativeName = "Tagalog", englishName = "Filipino / Tagalog", isRtl = false, script = UnicodeScript.LATIN),
-    TH(code = "th", nativeName = "ไทย", englishName = "Thai", isRtl = false, script = UnicodeScript.THAI);
+    TH(code = "th", nativeName = "ไทย", englishName = "Thai", isRtl = false, script = UnicodeScript.THAI),
+    TR(code = "tr", nativeName = "Türkçe", englishName = "Turkish", isRtl = false, script = UnicodeScript.LATIN);
 
     companion object {
         fun fromCode(code: String): AppLanguage {

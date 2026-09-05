@@ -37,6 +37,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -575,3 +576,474 @@ fun TransactionHistoryItem(
         }
     }
 }
+
+// ==========================================
+// MARKETPLACE BILLING & SUBSCRIPTION UI (دستور ۲)
+// ==========================================
+
+@Composable
+fun MarketplaceProviderToggle(
+    selected: com.tavana.studio.account.billing.MarketplaceType,
+    onSelect: (com.tavana.studio.account.billing.MarketplaceType) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(AvaTheme.colors.stageSurfaceElevated)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        com.tavana.studio.account.billing.MarketplaceType.values().forEach { provider ->
+            val isSelected = provider == selected
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isSelected) AvaSunsetCoral else Color.Transparent)
+                    .clickable { onSelect(provider) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = provider.displayNameFa,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    ),
+                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ActiveSubscriptionCard(
+    userAccount: com.tavana.studio.account.UserAccount,
+    onRestorePurchases: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val dateFormat = remember { SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()) }
+    val isActive = userAccount.isSubscriptionActive
+
+    AvaCard(
+        modifier = modifier.fillMaxWidth(),
+        testTag = "card_active_subscription"
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if (isActive) Icons.Default.Diamond else Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = if (isActive) AvaGoldenHighlight else Color(0xFF718096),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "وضعیت اشتراک استودیو",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                }
+
+                SubscriptionBadge(tier = userAccount.subscriptionTier)
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            if (isActive) {
+                Text(
+                    text = "اشتراک فعال: ${userAccount.subscriptionTier.tierName} (${userAccount.subscriptionTier.persianTitle})",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = Color(0xFF38A169)
+                )
+                userAccount.tierExpiryTimestamp?.let { exp ->
+                    Text(
+                        text = "تاریخ انقضا: ${dateFormat.format(Date(exp))}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                userAccount.marketplaceProvider?.let { mp ->
+                    Text(
+                        text = "تهیه شده از: $mp | شناسه سفارش: ${userAccount.lastOrderId ?: "مستقیم"}",
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                Text(
+                    text = "در حال حاضر از پلن رایگان (FREE) استفاده می‌کنید.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = onRestorePurchases,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("btn_restore_purchases")
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.History, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("بازیابی خریدهای قبلی (Restore Purchase)")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MarketplacePlansGrid(
+    plans: List<com.tavana.studio.account.billing.MarketplaceSubscriptionPlan>,
+    activeTier: SubscriptionTier,
+    selectedMarketplace: com.tavana.studio.account.billing.MarketplaceType,
+    onPurchasePlan: (com.tavana.studio.account.billing.MarketplaceSubscriptionPlan) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var selectedTierFilter by remember { mutableStateOf(SubscriptionTier.PRO) }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = "پلن‌های اشتراک دوره‌ای (۱، ۳، ۶، ۹، ۱۲ و ۲۴ ماهه)",
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = "خرید مستقیم از طریق درگاه امن ${selectedMarketplace.displayNameFa} با فعال‌سازی خودکار",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Tier Tab Selector (PLUS vs PRO)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(AvaTheme.colors.stageSurfaceElevated)
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            listOf(SubscriptionTier.PRO, SubscriptionTier.PLUS).forEach { tier ->
+                val isSelected = tier == selectedTierFilter
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isSelected) AvaSunsetCoral else Color.Transparent)
+                        .clickable { selectedTierFilter = tier }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "طرح‌های ${tier.tierName} (${tier.persianTitle})",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        ),
+                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 6 Plans: 1, 3, 6, 9, 12, 24 months
+        val filteredPlans = plans.filter { it.tier == selectedTierFilter }
+        filteredPlans.forEach { plan ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 5.dp)
+                    .border(1.dp, AvaTheme.colors.stageBorder, RoundedCornerShape(14.dp)),
+                colors = CardDefaults.cardColors(containerColor = AvaTheme.colors.stageSurface),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = plan.titleFa,
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                            )
+                            plan.badgeLabel?.let { badge ->
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(AvaSunsetCoral.copy(alpha = 0.2f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = badge,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                        color = AvaSunsetCoral
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "${plan.finalPriceToman / 1000} هزار تومان",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.ExtraBold),
+                                color = AvaGoldenHighlight
+                            )
+                            if (plan.discountPercent > 0) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "${plan.basePriceToman / 1000}",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    AvaPrimaryButton(
+                        text = "خرید اشتراک",
+                        onClick = { onPurchasePlan(plan) },
+                        testTag = "btn_buy_${plan.planId}"
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// REFERRAL & LOCALIZATION UI (دستور ۳)
+// ==========================================
+
+@Composable
+fun ReferralCard(
+    userAccount: com.tavana.studio.account.UserAccount,
+    onApplyCode: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var enteredCode by remember { mutableStateOf("") }
+
+    AvaCard(
+        modifier = modifier.fillMaxWidth(),
+        testTag = "card_referral_system"
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = AvaGoldenHighlight,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "برنامه معرف و دعوت از دوستان (Referral)",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "کد معرف خود را با دوستان به اشتراک بگذارید تا هر دو سکه هدیه و تخفیف دریافت کنید.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // User's own referral code
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(AvaTheme.colors.stageSurfaceElevated)
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "کد معرف اختصاصی شما:",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = userAccount.referralCode,
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
+                        color = AvaSunsetCoral
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(AvaSunsetCoral.copy(alpha = 0.2f))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "تعداد معرفی: ${userAccount.referralCount}",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = AvaSunsetCoral
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Enter a friend's code
+            if (userAccount.referredByCode == null) {
+                Text(
+                    text = "ورود کد معرف دوست شما:",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = enteredCode,
+                        onValueChange = { enteredCode = it },
+                        placeholder = { Text("مثال: TAV-123456") },
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("input_referral_code"),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    AvaPrimaryButton(
+                        text = "اعمال کد",
+                        onClick = {
+                            if (enteredCode.isNotBlank()) {
+                                onApplyCode(enteredCode)
+                                enteredCode = ""
+                            }
+                        },
+                        testTag = "btn_apply_referral"
+                    )
+                }
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF38A169))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "کد معرف ${userAccount.referredByCode} با موفقیت ثبت شده است.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF38A169)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LanguageSwitcherSection(
+    currentLanguage: com.tavana.studio.foundation.i18n.AppLanguage,
+    onSelectLanguage: (com.tavana.studio.foundation.i18n.AppLanguage) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val languages = listOf(
+        com.tavana.studio.foundation.i18n.AppLanguage.FA,
+        com.tavana.studio.foundation.i18n.AppLanguage.AR,
+        com.tavana.studio.foundation.i18n.AppLanguage.EN,
+        com.tavana.studio.foundation.i18n.AppLanguage.ES,
+        com.tavana.studio.foundation.i18n.AppLanguage.TR,
+        com.tavana.studio.foundation.i18n.AppLanguage.HI,
+        com.tavana.studio.foundation.i18n.AppLanguage.TH,
+        com.tavana.studio.foundation.i18n.AppLanguage.TL
+    )
+
+    AvaCard(
+        modifier = modifier.fillMaxWidth(),
+        testTag = "card_language_selector"
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "زبان و چیدمان برنامه (Language & Localization)",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+            )
+            Text(
+                text = "پشتیبانی کامل از زبان‌های فارسی، عربی، انگلیسی، اسپانیایی، ترکی، هندی، تایلندی و فیلیپینی با تغییر جهت RTL/LTR",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                languages.take(4).forEach { lang ->
+                    LanguageChip(
+                        language = lang,
+                        isSelected = lang == currentLanguage,
+                        onSelect = { onSelectLanguage(lang) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                languages.drop(4).take(4).forEach { lang ->
+                    LanguageChip(
+                        language = lang,
+                        isSelected = lang == currentLanguage,
+                        onSelect = { onSelectLanguage(lang) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LanguageChip(
+    language: com.tavana.studio.foundation.i18n.AppLanguage,
+    isSelected: Boolean,
+    onSelect: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isSelected) AvaSunsetCoral else AvaTheme.colors.stageSurfaceElevated)
+            .clickable(onClick = onSelect)
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = language.nativeName,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                fontSize = 11.sp
+            ),
+            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
