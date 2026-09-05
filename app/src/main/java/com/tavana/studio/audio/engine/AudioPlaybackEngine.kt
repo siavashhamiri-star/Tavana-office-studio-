@@ -2,6 +2,8 @@ package com.tavana.studio.audio.engine
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
@@ -14,6 +16,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileInputStream
 
 enum class PlaybackEngineState {
     IDLE,
@@ -78,12 +82,70 @@ class AndroidAudioPlaybackEngine(
 
     private var mediaPlayer: MediaPlayer? = null
     private var progressPollJob: Job? = null
+    private var audioManager: AudioManager? = null
+    private var audioFocusRequest: AudioFocusRequest? = null
+    @Volatile
+    private var autoPlayWhenPrepared: Boolean = false
+
+    init {
+        audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+    }
+
+    private fun requestAudioFocus(): Boolean {
+        return try {
+            val am = audioManager ?: return true
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .build()
+                    )
+                    .setOnAudioFocusChangeListener { focusChange ->
+                        if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT || focusChange == AudioManager.AUDIOFOCUS_LOSS) {
+                            pause()
+                        }
+                    }
+                    .build()
+                audioFocusRequest = req
+                am.requestAudioFocus(req) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            } else {
+                @Suppress("DEPRECATION")
+                am.requestAudioFocus(
+                    { focusChange ->
+                        if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT || focusChange == AudioManager.AUDIOFOCUS_LOSS) {
+                            pause()
+                        }
+                    },
+                    AudioManager.STREAM_MUSIC,
+                    AudioManager.AUDIOFOCUS_GAIN
+                ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            }
+        } catch (_: Exception) {
+            true
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        try {
+            val am = audioManager ?: return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                audioFocusRequest?.let { am.abandonAudioFocusRequest(it) }
+            } else {
+                @Suppress("DEPRECATION")
+                am.abandonAudioFocus(null)
+            }
+        } catch (_: Exception) {
+        }
+    }
 
     override fun prepare(sourceUri: String): Result<Unit> {
         try {
             release()
             _state.value = PlaybackEngineState.PREPARING
             _errorMessage.value = null
+            autoPlayWhenPrepared = false
 
             val player = MediaPlayer().apply {
                 setAudioAttributes(
@@ -93,7 +155,12 @@ class AndroidAudioPlaybackEngine(
                         .build()
                 )
 
-                if (sourceUri.startsWith("http") || sourceUri.startsWith("content://") || sourceUri.startsWith("file://")) {
+                val file = File(sourceUri)
+                if (file.exists()) {
+                    FileInputStream(file).use { fis ->
+                        setDataSource(fis.fd)
+                    }
+                } else if (sourceUri.startsWith("http") || sourceUri.startsWith("content://") || sourceUri.startsWith("file://")) {
                     setDataSource(context, Uri.parse(sourceUri))
                 } else {
                     setDataSource(sourceUri)
@@ -105,12 +172,18 @@ class AndroidAudioPlaybackEngine(
                     mp.isLooping = _isLooping.value
                     mp.setVolume(_volume.value, _volume.value)
                     applyPlaybackParams(mp, _playbackSpeed.value)
+
+                    if (autoPlayWhenPrepared) {
+                        autoPlayWhenPrepared = false
+                        play()
+                    }
                 }
 
                 setOnCompletionListener {
                     if (!_isLooping.value) {
                         _state.value = PlaybackEngineState.COMPLETED
                         stopPolling()
+                        abandonAudioFocus()
                     }
                 }
 
@@ -119,6 +192,7 @@ class AndroidAudioPlaybackEngine(
                     _errorMessage.value = err
                     _state.value = PlaybackEngineState.ERROR
                     stopPolling()
+                    abandonAudioFocus()
                     true
                 }
 
@@ -135,8 +209,13 @@ class AndroidAudioPlaybackEngine(
     }
 
     override fun play(): Result<Unit> {
+        if (_state.value == PlaybackEngineState.PREPARING) {
+            autoPlayWhenPrepared = true
+            return Result.success(Unit)
+        }
         val player = mediaPlayer ?: return Result.failure(IllegalStateException("Not prepared"))
         return try {
+            requestAudioFocus()
             player.start()
             _state.value = PlaybackEngineState.PLAYING
             startPolling()
@@ -241,6 +320,7 @@ class AndroidAudioPlaybackEngine(
 
     override fun release() {
         stopPolling()
+        abandonAudioFocus()
         try {
             mediaPlayer?.stop()
             mediaPlayer?.release()

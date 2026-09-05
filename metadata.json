@@ -1,6 +1,6 @@
 {
   "name": "TAVANA Studio",
-  "description": "TAVANA Studio — Your Digital Life & Work. Audio foundation, recording studio, multi-track mixer, voice profiling, and vocal workspace.",
+  "description": "TAVANA Voice Studio — Vocal workspace, multi-track mixer, singing coach, with unified account linking (Google & Phone), subscription tiers (Free, Plus, Pro), and studio coins wallet.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

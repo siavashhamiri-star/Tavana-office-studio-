@@ -20,7 +20,8 @@ data class RecordingTake(
     val pitchAccuracy: Int,
     val rhythmAccuracy: Int,
     val vocalPower: Int,
-    val isFavorite: Boolean = false
+    val isFavorite: Boolean = false,
+    val filePath: String? = null
 )
 
 data class PracticeExercise(

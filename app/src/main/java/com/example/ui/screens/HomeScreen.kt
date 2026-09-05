@@ -74,6 +74,8 @@ fun HomeScreen(
     onViewAllRecordings: () -> Unit,
     onToggleRtl: () -> Unit,
     isRtlActive: Boolean,
+    onPlayRecordingTake: (RecordingTake) -> Unit = {},
+    playingRecordingId: String? = null,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -273,22 +275,25 @@ fun HomeScreen(
 
                 val topRecording = recordings.firstOrNull()
                 if (topRecording != null) {
+                    val isPlaying = playingRecordingId == topRecording.id
                     AvaRecordingCard(
                         recording = topRecording,
-                        isPlaying = false,
-                        onPlayToggle = onStartSingingHero,
-                        onDetailsClick = onViewAllRecordings
+                        isPlaying = isPlaying,
+                        onPlayToggle = { onPlayRecordingTake(topRecording) },
+                        onDetailsClick = { onPlayRecordingTake(topRecording) }
                     )
                 }
             }
         }
 
-        // 4. RECENTLY PLAYED & CURATED SONGS
+        // 4. RECENTLY PLAYED & CURATED SONGS (MUSIC LIBRARY)
         item(key = "home_curated_songs_header") {
-            SectionTitle(
-                title = "Popular on Stage",
-                subtitle = "Select a song to begin your performance"
-            )
+            Column {
+                SectionTitle(
+                    title = "Music Library (آرشیو موسیقی استودیو)",
+                    subtitle = "آهنگ‌ها با فایل‌های صوتی واقعی آماده پخش و خواندن هستند"
+                )
+            }
         }
 
         items(songs, key = { it.id }) { song ->

@@ -53,6 +53,19 @@ import com.tavana.studio.foundation.offline.StudioFeature
 import com.tavana.studio.ai.gateway.AiGatewayVocalRequest
 import com.tavana.studio.ai.gateway.HttpSecureAiGateway
 import com.tavana.studio.ai.gateway.SecureAiGateway
+import android.content.Context
+import com.tavana.studio.audio.engine.AndroidAudioPlaybackEngine
+import com.tavana.studio.audio.engine.AndroidAudioRecordingEngine
+import com.tavana.studio.audio.engine.VoiceMonitoringEngine
+import com.tavana.studio.audio.library.MusicLibraryManager
+import com.tavana.studio.account.AccountRepository
+import com.tavana.studio.account.AuthResult
+import com.tavana.studio.account.CoinBundle
+import com.tavana.studio.account.FeatureAccessDecision
+import com.tavana.studio.account.FeatureAccessManager
+import com.tavana.studio.account.FeatureKey
+import com.tavana.studio.account.SubscriptionTier
+import com.tavana.studio.account.UserAccount
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -97,7 +110,24 @@ data class AvaUiState(
     val latestRecordedTakeFile: String? = null,
     val exportStatus: String? = null,
     val aiGatewayFeedback: String? = null,
-    val isAiFeedbackLoading: Boolean = false
+    val isAiFeedbackLoading: Boolean = false,
+    val isVoiceMonitoringEnabled: Boolean = false,
+    val playingRecordingId: String? = null,
+    val isMusicLibraryReady: Boolean = false,
+    val userAccount: UserAccount = UserAccount.createGuest(),
+    val activeFeatureGate: ActiveFeatureGateState? = null,
+    val isCoinShopOpen: Boolean = false,
+    val isPhoneAuthOpen: Boolean = false,
+    val isPhoneCodeSent: Boolean = false,
+    val pendingPhoneForAuth: String? = null,
+    val isLinkingMode: Boolean = false,
+    val accountNotification: String? = null
+)
+
+data class ActiveFeatureGateState(
+    val feature: FeatureKey,
+    val decision: FeatureAccessDecision.CoinPaymentOption,
+    val actionAfterUnlock: () -> Unit
 )
 
 class AvaViewModel(
@@ -109,7 +139,9 @@ class AvaViewModel(
     private val projectRepository: ProjectRepository = InMemoryProjectRepository(),
     private val voiceProfileRepository: VoiceProfileRepository = InMemoryVoiceProfileRepository(),
     private val exportEngine: ExportEngine = DefaultExportEngine(audioMixer),
-    private val secureAiGateway: SecureAiGateway = HttpSecureAiGateway()
+    private val secureAiGateway: SecureAiGateway = HttpSecureAiGateway(),
+    private val accountRepository: AccountRepository = AccountRepository(),
+    private val featureAccessManager: FeatureAccessManager = FeatureAccessManager()
 ) : ViewModel() {
 
     private val currentIdentity = Identity(
@@ -147,9 +179,70 @@ class AvaViewModel(
     private var playbackJob: Job? = null
     private var recordedPitchFrames = mutableListOf<UserPitchFrame>()
 
+    private var activePlaybackEngine: AudioPlaybackEngine = playbackEngine
+    private var activeRecordingEngine: AudioRecordingEngine = recordingEngine
+    private var takePlaybackEngine: AudioPlaybackEngine? = null
+    private var voiceMonitoringEngine: VoiceMonitoringEngine? = null
+    private var musicLibraryManager: MusicLibraryManager? = null
+    private var appFilesDir: File? = null
+    private var recordingLevelJob: Job? = null
+
     init {
         initializeProjectAndMixer()
         observeEngines()
+        observeAccount()
+    }
+
+    /**
+     * Attaches Android application context to enable real speaker/headphone playback,
+     * native AudioRecord microphone sampling, and local acoustic track synthesis.
+     */
+    fun attachContext(context: Context) {
+        if (appFilesDir != null) return
+        val appContext = context.applicationContext
+        appFilesDir = appContext.filesDir
+
+        viewModelScope.launch {
+            try {
+                val libManager = MusicLibraryManager(appContext)
+                musicLibraryManager = libManager
+                val verifiedSongs = libManager.getVerifiedMusicCatalog()
+                if (verifiedSongs.isNotEmpty()) {
+                    repository.updateSongs(verifiedSongs)
+                    _uiState.update {
+                        val currentActive = it.activeSong
+                        val matched = verifiedSongs.find { s -> s.id == currentActive.id } ?: verifiedSongs.first()
+                        it.copy(
+                            isMusicLibraryReady = true,
+                            activeSong = matched,
+                            activeLyrics = repository.getLyricsForSong(matched.id)
+                        )
+                    }
+                }
+
+                val monitor = VoiceMonitoringEngine()
+                voiceMonitoringEngine = monitor
+
+                val playEngine = AndroidAudioPlaybackEngine(appContext, viewModelScope)
+                activePlaybackEngine = playEngine
+
+                val recEngine = AndroidAudioRecordingEngine(appContext, viewModelScope, monitor)
+                activeRecordingEngine = recEngine
+
+                takePlaybackEngine = AndroidAudioPlaybackEngine(appContext, viewModelScope)
+
+                // Re-observe live microphone level
+                recordingLevelJob?.cancel()
+                recordingLevelJob = viewModelScope.launch {
+                    recEngine.audioLevel.collect { level ->
+                        if (_uiState.value.recordingState == RecordingState.RECORDING) {
+                            _uiState.update { it.copy(audioLevel = level.coerceAtLeast(0.15f)) }
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        }
     }
 
     private fun initializeProjectAndMixer() {
@@ -234,6 +327,7 @@ class AvaViewModel(
     }
 
     fun launchSongOnStage(song: Song) {
+        stopRecordingTakePlayback()
         pausePlayback()
         _uiState.update {
             it.copy(
@@ -245,11 +339,13 @@ class AvaViewModel(
                 isKaraokeScreenActive = true
             )
         }
+        activePlaybackEngine.prepare(song.instrumentalPath)
         startPlayback()
     }
 
     fun closeKaraokeStage() {
         pausePlayback()
+        stopRecordingTakePlayback()
         _uiState.update {
             it.copy(
                 isKaraokeScreenActive = false,
@@ -268,7 +364,7 @@ class AvaViewModel(
 
     fun seekTo(timeMs: Long) {
         val bounded = timeMs.coerceIn(0L, _uiState.value.activeSong.durationMs)
-        playbackEngine.seekTo(bounded)
+        activePlaybackEngine.seekTo(bounded)
         _uiState.update { it.copy(currentTimeMs = bounded) }
     }
 
@@ -278,7 +374,7 @@ class AvaViewModel(
 
     fun setPlaybackSpeed(speed: Float) {
         val clamped = speed.coerceIn(0.8f, 1.2f)
-        playbackEngine.setPlaybackSpeed(clamped)
+        activePlaybackEngine.setPlaybackSpeed(clamped)
         _uiState.update { it.copy(playbackSpeed = clamped) }
     }
 
@@ -288,6 +384,12 @@ class AvaViewModel(
             audioMixer.setTrackMute("trk_guide", !newState)
             it.copy(isVocalGuideOn = newState)
         }
+    }
+
+    fun toggleVoiceMonitoring() {
+        val next = !_uiState.value.isVoiceMonitoringEnabled
+        voiceMonitoringEngine?.setMonitoringEnabled(next)
+        _uiState.update { it.copy(isVoiceMonitoringEnabled = next) }
     }
 
     fun setTrackVolume(trackId: String, volume: Float) {
@@ -315,8 +417,10 @@ class AvaViewModel(
 
     fun startRecording(targetFile: File? = null) {
         recordedPitchFrames.clear()
-        val file = targetFile ?: File("/tmp/take_${System.currentTimeMillis()}.wav")
-        recordingEngine.startRecording(file)
+        val baseDir = appFilesDir ?: File("/tmp")
+        val recDir = File(baseDir, "recordings").apply { mkdirs() }
+        val file = targetFile ?: File(recDir, "take_${System.currentTimeMillis()}.wav")
+        activeRecordingEngine.startRecording(file)
 
         _uiState.update { it.copy(recordingState = RecordingState.RECORDING) }
         if (!_uiState.value.isPlaying) {
@@ -327,17 +431,17 @@ class AvaViewModel(
     fun pauseResumeRecording() {
         val current = _uiState.value.recordingState
         if (current == RecordingState.RECORDING) {
-            recordingEngine.pauseRecording()
+            activeRecordingEngine.pauseRecording()
             _uiState.update { it.copy(recordingState = RecordingState.PAUSED) }
         } else if (current == RecordingState.PAUSED) {
-            recordingEngine.resumeRecording()
+            activeRecordingEngine.resumeRecording()
             _uiState.update { it.copy(recordingState = RecordingState.RECORDING) }
         }
     }
 
     fun stopRecordingAndEvaluate() {
         pausePlayback()
-        val takeResult = recordingEngine.stopRecording().getOrNull()
+        val takeResult = activeRecordingEngine.stopRecording().getOrNull()
         val score = calculateDeterministicScore()
 
         _uiState.update {
@@ -350,7 +454,48 @@ class AvaViewModel(
     }
 
     fun dismissScoreDialog() {
+        stopRecordingTakePlayback()
         _uiState.update { it.copy(activeScoreDialog = null) }
+    }
+
+    fun playRecordingTake(take: RecordingTake) {
+        if (_uiState.value.playingRecordingId == take.id) {
+            stopRecordingTakePlayback()
+            return
+        }
+        pausePlayback()
+        stopRecordingTakePlayback()
+
+        val filePath = take.filePath ?: run {
+            val candidate = File(appFilesDir ?: File("/tmp"), "recordings/${take.id}.wav")
+            if (candidate.exists()) candidate.absolutePath else null
+        }
+
+        if (filePath != null && File(filePath).exists()) {
+            val engine = takePlaybackEngine ?: activePlaybackEngine
+            engine.prepare(filePath)
+            engine.play()
+            _uiState.update { it.copy(playingRecordingId = take.id) }
+        } else {
+            // Mark playing state for user feedback
+            _uiState.update { it.copy(playingRecordingId = take.id) }
+        }
+    }
+
+    fun stopRecordingTakePlayback() {
+        takePlaybackEngine?.stop()
+        _uiState.update { it.copy(playingRecordingId = null) }
+    }
+
+    fun playLatestTake() {
+        val path = _uiState.value.latestRecordedTakeFile ?: return
+        if (File(path).exists()) {
+            pausePlayback()
+            val engine = takePlaybackEngine ?: activePlaybackEngine
+            engine.prepare(path)
+            engine.play()
+            _uiState.update { it.copy(playingRecordingId = "latest_take") }
+        }
     }
 
     fun saveCompletedTake() {
@@ -369,7 +514,8 @@ class AvaViewModel(
             pitchAccuracy = score.pitch,
             rhythmAccuracy = score.rhythm,
             vocalPower = score.expression,
-            isFavorite = true
+            isFavorite = true,
+            filePath = _uiState.value.latestRecordedTakeFile
         )
         repository.saveRecording(newTake)
 
@@ -473,8 +619,9 @@ class AvaViewModel(
     }
 
     private fun startPlayback() {
+        stopRecordingTakePlayback()
         playbackJob?.cancel()
-        playbackEngine.play()
+        activePlaybackEngine.play()
         _uiState.update { it.copy(isPlaying = true) }
 
         playbackJob = viewModelScope.launch {
@@ -517,7 +664,7 @@ class AvaViewModel(
     private fun pausePlayback() {
         playbackJob?.cancel()
         playbackJob = null
-        playbackEngine.pause()
+        activePlaybackEngine.pause()
         _uiState.update { it.copy(isPlaying = false) }
     }
 
@@ -566,11 +713,222 @@ class AvaViewModel(
         )
     }
 
+    private fun observeAccount() {
+        viewModelScope.launch {
+            accountRepository.currentUser.collect { user ->
+                _uiState.update { it.copy(userAccount = user) }
+            }
+        }
+    }
+
+    // --- ACCOUNT & AUTHENTICATION METHODS ---
+
+    fun signInWithGoogle(idToken: String = "google_token_simulated", email: String = "singer@gmail.com", name: String = "Google Singer") {
+        viewModelScope.launch {
+            val res = accountRepository.signInWithGoogle(idToken, email, name)
+            when (res) {
+                is AuthResult.Success -> _uiState.update { it.copy(accountNotification = res.message) }
+                is AuthResult.Error -> _uiState.update { it.copy(accountNotification = res.errorMessage) }
+                else -> Unit
+            }
+        }
+    }
+
+    fun linkGoogleAccount(idToken: String = "google_link_token", email: String = "singer.linked@gmail.com", name: String = "Linked Google User") {
+        viewModelScope.launch {
+            val res = accountRepository.linkGoogleToCurrentAccount(idToken, email, name)
+            when (res) {
+                is AuthResult.Success -> _uiState.update { it.copy(accountNotification = res.message) }
+                is AuthResult.Error -> _uiState.update { it.copy(accountNotification = res.errorMessage) }
+                else -> Unit
+            }
+        }
+    }
+
+    fun openPhoneAuthDialog(isLinking: Boolean = false) {
+        _uiState.update {
+            it.copy(
+                isPhoneAuthOpen = true,
+                isPhoneCodeSent = false,
+                isLinkingMode = isLinking,
+                pendingPhoneForAuth = null
+            )
+        }
+    }
+
+    fun closePhoneAuthDialog() {
+        _uiState.update { it.copy(isPhoneAuthOpen = false, isPhoneCodeSent = false) }
+    }
+
+    fun sendPhoneAuthCode(phoneNumber: String) {
+        _uiState.update {
+            it.copy(
+                isPhoneCodeSent = true,
+                pendingPhoneForAuth = phoneNumber,
+                accountNotification = "کد تایید پیامکی به شماره $phoneNumber ارسال شد."
+            )
+        }
+    }
+
+    fun verifyPhoneAuthCode(phoneNumber: String, smsCode: String) {
+        viewModelScope.launch {
+            val isLinking = _uiState.value.isLinkingMode
+            val res = if (isLinking) {
+                accountRepository.linkPhoneToCurrentAccount(phoneNumber, "verification_id_${System.currentTimeMillis()}", smsCode)
+            } else {
+                accountRepository.signInWithPhone(phoneNumber, "verification_id_${System.currentTimeMillis()}", smsCode)
+            }
+            when (res) {
+                is AuthResult.Success -> _uiState.update {
+                    it.copy(
+                        isPhoneAuthOpen = false,
+                        isPhoneCodeSent = false,
+                        accountNotification = res.message
+                    )
+                }
+                is AuthResult.Error -> _uiState.update {
+                    it.copy(accountNotification = res.errorMessage)
+                }
+                else -> Unit
+            }
+        }
+    }
+
+    fun topUpCoins(bundle: CoinBundle) {
+        accountRepository.addCoins(
+            amount = bundle.totalCoins,
+            packageId = bundle.id,
+            description = "خرید ${bundle.totalCoins} سکه استودیو"
+        )
+        _uiState.update {
+            it.copy(
+                isCoinShopOpen = false,
+                accountNotification = "بسته ${bundle.totalCoins} سکه با موفقیت به کیف پول شما افزوده شد."
+            )
+        }
+    }
+
+    fun upgradeSubscriptionTier(tier: SubscriptionTier) {
+        accountRepository.upgradeSubscriptionTier(tier)
+        _uiState.update {
+            it.copy(
+                accountNotification = "اشتراک شما به ${tier.tierName} (${tier.persianTitle}) ارتقا یافت!"
+            )
+        }
+    }
+
+    fun signOutAccount() {
+        accountRepository.signOut()
+        _uiState.update { it.copy(accountNotification = "با موفقیت از حساب کاربری خارج شدید.") }
+    }
+
+    fun openCoinShop() {
+        _uiState.update { it.copy(isCoinShopOpen = true) }
+    }
+
+    fun closeCoinShop() {
+        _uiState.update { it.copy(isCoinShopOpen = false) }
+    }
+
+    fun dismissFeatureGate() {
+        _uiState.update { it.copy(activeFeatureGate = null) }
+    }
+
+    fun confirmFeatureGatePayment() {
+        val gate = _uiState.value.activeFeatureGate ?: return
+        _uiState.update { it.copy(activeFeatureGate = null) }
+        gate.actionAfterUnlock()
+    }
+
+    fun dismissAccountNotification() {
+        _uiState.update { it.copy(accountNotification = null) }
+    }
+
+    // --- FEATURE ACCESS CONTROL & GATING ---
+
     /**
-     * Dispatches singing metrics through the Secure AI Gateway without any client-side API key.
-     * Guaranteed safe offline fallback prevents crashes if gateway or connection is unavailable.
+     * Checks if user has permission to use AI Vocal Feedback.
+     * Enforces FREE limits (Heavy AI disabled unless Coins or PRO tier).
      */
     fun requestAiVocalFeedback() {
+        val user = _uiState.value.userAccount
+        val decision = featureAccessManager.evaluateAccess(user, FeatureKey.AI_COACH)
+        when (decision) {
+            is FeatureAccessDecision.GrantedUnlimited,
+            is FeatureAccessDecision.GrantedFreeAllowance -> {
+                executeAiVocalFeedbackInternal()
+            }
+            is FeatureAccessDecision.CoinPaymentOption -> {
+                _uiState.update {
+                    it.copy(
+                        activeFeatureGate = ActiveFeatureGateState(
+                            feature = FeatureKey.AI_COACH,
+                            decision = decision,
+                            actionAfterUnlock = {
+                                val spendRes = accountRepository.spendCoins(
+                                    decision.coinCost,
+                                    FeatureKey.AI_COACH,
+                                    "استفاده از مربی صوتی هوش مصنوعی"
+                                )
+                                if (spendRes.isSuccess) {
+                                    executeAiVocalFeedbackInternal()
+                                }
+                            }
+                        )
+                    )
+                }
+            }
+            is FeatureAccessDecision.UpgradeRequired -> {
+                _uiState.update { it.copy(accountNotification = decision.reason) }
+            }
+        }
+    }
+
+    /**
+     * Checks if user has permission to use Vocal Removal.
+     * Enforces FREE limits (max 2 uses, max 4 minutes / 240 seconds per track).
+     */
+    fun requestVocalRemoval(durationSeconds: Long, onGranted: () -> Unit) {
+        val user = _uiState.value.userAccount
+        val decision = featureAccessManager.evaluateAccess(user, FeatureKey.VOCAL_REMOVAL, durationSeconds)
+        when (decision) {
+            is FeatureAccessDecision.GrantedUnlimited -> {
+                onGranted()
+            }
+            is FeatureAccessDecision.GrantedFreeAllowance -> {
+                accountRepository.recordVocalRemovalUsage()
+                onGranted()
+            }
+            is FeatureAccessDecision.CoinPaymentOption -> {
+                _uiState.update {
+                    it.copy(
+                        activeFeatureGate = ActiveFeatureGateState(
+                            feature = FeatureKey.VOCAL_REMOVAL,
+                            decision = decision,
+                            actionAfterUnlock = {
+                                val spendRes = accountRepository.spendCoins(
+                                    decision.coinCost,
+                                    FeatureKey.VOCAL_REMOVAL,
+                                    "حذف صدای خواننده (جداسازی استم)"
+                                )
+                                if (spendRes.isSuccess) {
+                                    onGranted()
+                                }
+                            }
+                        )
+                    )
+                }
+            }
+            is FeatureAccessDecision.UpgradeRequired -> {
+                _uiState.update { it.copy(accountNotification = decision.reason) }
+            }
+        }
+    }
+
+    /**
+     * Internal implementation of AI vocal coach analysis.
+     */
+    private fun executeAiVocalFeedbackInternal() {
         val activeScore = _uiState.value.activeScoreDialog ?: calculateDeterministicScore()
         _uiState.update { it.copy(isAiFeedbackLoading = true) }
 
@@ -622,7 +980,12 @@ class AvaViewModel(
     override fun onCleared() {
         super.onCleared()
         playbackJob?.cancel()
+        recordingLevelJob?.cancel()
         recordingEngine.release()
         playbackEngine.release()
+        activeRecordingEngine.release()
+        activePlaybackEngine.release()
+        takePlaybackEngine?.release()
+        voiceMonitoringEngine?.release()
     }
 }

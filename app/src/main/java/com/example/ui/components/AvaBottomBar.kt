@@ -9,10 +9,12 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.QueueMusic
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Icon
@@ -60,6 +62,12 @@ enum class AvaNavDestination(
         selectedIcon = Icons.Filled.Tune,
         unselectedIcon = Icons.Outlined.Tune,
         testTag = "nav_tab_studio"
+    ),
+    ACCOUNT(
+        title = "Account",
+        selectedIcon = Icons.Filled.Person,
+        unselectedIcon = Icons.Outlined.Person,
+        testTag = "nav_tab_account"
     )
 }
 

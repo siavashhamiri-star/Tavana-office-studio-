@@ -12,14 +12,20 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.components.AvaBottomBar
 import com.example.ui.components.AvaNavDestination
+import com.example.ui.components.CoinShopDialog
+import com.example.ui.components.FeatureGateDialog
+import com.example.ui.components.PhoneAuthDialog
+import com.example.ui.screens.AccountScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.KaraokeStageScreen
 import com.example.ui.screens.PracticeScreen
@@ -27,6 +33,10 @@ import com.example.ui.screens.RecordingsScreen
 import com.example.ui.screens.StudioScreen
 import com.example.ui.theme.AvaTheme
 import com.example.ui.viewmodel.AvaViewModel
+import com.tavana.studio.account.FeaturePricingPolicy
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import com.tavana.studio.foundation.accessibility.LocalAccessibilityProfile
 import com.tavana.studio.foundation.i18n.LocalAppLanguage
 import com.tavana.studio.foundation.i18n.LocalTavanaStrings
@@ -36,6 +46,11 @@ import com.tavana.studio.foundation.i18n.TavanaStringsRegistry
 fun AvaApp(
     viewModel: AvaViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        viewModel.attachContext(context)
+    }
+
     val uiState by viewModel.uiState.collectAsState()
     val songs by viewModel.songs.collectAsState()
     val recordings by viewModel.recordings.collectAsState()
@@ -72,7 +87,9 @@ fun AvaApp(
                         viewModel.startRecording()
                     },
                     onDismissScoreDialog = { viewModel.dismissScoreDialog() },
-                    onToggleRtl = { viewModel.togglePersianRtl() }
+                    onToggleRtl = { viewModel.togglePersianRtl() },
+                    onToggleVoiceMonitoring = { viewModel.toggleVoiceMonitoring() },
+                    onPlayRecordedTake = { viewModel.playLatestTake() }
                 )
             } else {
                 Scaffold(
@@ -114,7 +131,11 @@ fun AvaApp(
                                             viewModel.selectTab(AvaNavDestination.RECORDINGS)
                                         },
                                         onToggleRtl = { viewModel.togglePersianRtl() },
-                                        isRtlActive = uiState.isPersianRtlEnabled
+                                        isRtlActive = uiState.isPersianRtlEnabled,
+                                        onPlayRecordingTake = { take ->
+                                            viewModel.playRecordingTake(take)
+                                        },
+                                        playingRecordingId = uiState.playingRecordingId
                                     )
                                 }
                                 AvaNavDestination.PRACTICE -> {
@@ -129,7 +150,11 @@ fun AvaApp(
                                     RecordingsScreen(
                                         recordings = recordings,
                                         onSingSong = { song -> viewModel.launchSongOnStage(song) },
-                                        onNavigateToStage = { viewModel.selectTab(AvaNavDestination.STAGE) }
+                                        onNavigateToStage = { viewModel.selectTab(AvaNavDestination.STAGE) },
+                                        onPlayRecordingTake = { take ->
+                                            viewModel.playRecordingTake(take)
+                                        },
+                                        playingTakeId = uiState.playingRecordingId
                                     )
                                 }
                                 AvaNavDestination.STUDIO -> {
@@ -145,9 +170,68 @@ fun AvaApp(
                                         onExportProject = { viewModel.exportCurrentProject(it) }
                                     )
                                 }
+                                AvaNavDestination.ACCOUNT -> {
+                                    AccountScreen(
+                                        userAccount = uiState.userAccount,
+                                        onSignInGoogle = { viewModel.signInWithGoogle() },
+                                        onSignInPhone = { viewModel.openPhoneAuthDialog(isLinking = false) },
+                                        onLinkGoogle = { viewModel.linkGoogleAccount() },
+                                        onLinkPhone = { viewModel.openPhoneAuthDialog(isLinking = true) },
+                                        onTopUpCoins = { viewModel.openCoinShop() },
+                                        onUpgradeTier = { viewModel.upgradeSubscriptionTier(it) },
+                                        onSignOut = { viewModel.signOutAccount() }
+                                    )
+                                }
                             }
                         }
                     }
+                }
+
+                // Feature Gate Dialog
+                uiState.activeFeatureGate?.let { gate ->
+                    FeatureGateDialog(
+                        feature = gate.feature,
+                        decision = gate.decision,
+                        onUseCoins = { viewModel.confirmFeatureGatePayment() },
+                        onUpgrade = { tier ->
+                            viewModel.dismissFeatureGate()
+                            viewModel.upgradeSubscriptionTier(tier)
+                        },
+                        onDismiss = { viewModel.dismissFeatureGate() }
+                    )
+                }
+
+                // Coin Shop Dialog
+                if (uiState.isCoinShopOpen) {
+                    CoinShopDialog(
+                        bundles = FeaturePricingPolicy.availableCoinBundles,
+                        onPurchaseBundle = { bundle -> viewModel.topUpCoins(bundle) },
+                        onDismiss = { viewModel.closeCoinShop() }
+                    )
+                }
+
+                // Phone Auth Dialog
+                if (uiState.isPhoneAuthOpen) {
+                    PhoneAuthDialog(
+                        onSendCode = { phone -> viewModel.sendPhoneAuthCode(phone) },
+                        onVerifyCode = { phone, code -> viewModel.verifyPhoneAuthCode(phone, code) },
+                        onDismiss = { viewModel.closePhoneAuthDialog() },
+                        isCodeSent = uiState.isPhoneCodeSent
+                    )
+                }
+
+                // Account Notification Dialog
+                uiState.accountNotification?.let { msg ->
+                    AlertDialog(
+                        onDismissRequest = { viewModel.dismissAccountNotification() },
+                        title = { Text("TAVANA Studio") },
+                        text = { Text(msg) },
+                        confirmButton = {
+                            TextButton(onClick = { viewModel.dismissAccountNotification() }) {
+                                Text("باشه")
+                            }
+                        }
+                    )
                 }
             }
         }

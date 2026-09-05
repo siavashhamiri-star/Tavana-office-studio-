@@ -35,10 +35,10 @@ fun RecordingsScreen(
     recordings: List<RecordingTake>,
     onSingSong: (Song) -> Unit,
     onNavigateToStage: () -> Unit,
+    onPlayRecordingTake: (RecordingTake) -> Unit = {},
+    playingTakeId: String? = null,
     modifier: Modifier = Modifier
 ) {
-    var playingTakeId by remember { mutableStateOf<String?>(null) }
-
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -84,11 +84,10 @@ fun RecordingsScreen(
                     recording = take,
                     isPlaying = isPlaying,
                     onPlayToggle = {
-                        playingTakeId = if (isPlaying) null else take.id
+                        onPlayRecordingTake(take)
                     },
                     onDetailsClick = {
-                        // Open playback
-                        playingTakeId = if (isPlaying) null else take.id
+                        onPlayRecordingTake(take)
                     }
                 )
             }

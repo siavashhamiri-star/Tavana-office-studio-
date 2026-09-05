@@ -58,7 +58,8 @@ interface AudioRecordingEngine {
  */
 class AndroidAudioRecordingEngine(
     private val context: Context,
-    private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO)
+    private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO),
+    private val monitoringEngine: VoiceMonitoringEngine? = null
 ) : AudioRecordingEngine {
 
     private val sampleRate = 44100
@@ -168,6 +169,9 @@ class AndroidAudioRecordingEngine(
                         val readCount = audioRecord?.read(audioBuffer, 0, audioBuffer.size) ?: -1
                         if (readCount > 0) {
                             totalSamplesRead += readCount
+
+                            // Feed into real-time ear monitor if enabled
+                            monitoringEngine?.feedMicPcm(audioBuffer, readCount)
 
                             // Calculate real RMS level
                             var sumSquares = 0.0

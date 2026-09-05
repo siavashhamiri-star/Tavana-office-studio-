@@ -22,6 +22,8 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -58,7 +60,9 @@ fun AvaScoreDialog(
     songTitle: String,
     onSaveTake: () -> Unit,
     onSingAgain: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onPlayRecording: (() -> Unit)? = null,
+    isPlayingRecordedTake: Boolean = false
 ) {
     var animatedScoreProgress by remember { mutableFloatStateOf(0f) }
 
@@ -165,6 +169,17 @@ fun AvaScoreDialog(
                 Spacer(modifier = Modifier.height(AvaTheme.spacing.large))
 
                 // Actions
+                if (onPlayRecording != null) {
+                    AvaSecondaryButton(
+                        text = if (isPlayingRecordedTake) "Pause Playback" else "Listen to My Take (شنیدن صدای ضبط‌شده)",
+                        icon = if (isPlayingRecordedTake) Icons.Rounded.GraphicEq else Icons.Rounded.PlayArrow,
+                        onClick = onPlayRecording,
+                        modifier = Modifier.fillMaxWidth(),
+                        testTag = "score_listen_take"
+                    )
+                    Spacer(modifier = Modifier.height(AvaTheme.spacing.small))
+                }
+
                 AvaPrimaryButton(
                     text = "Save Recording Take",
                     icon = Icons.Default.Bookmark,

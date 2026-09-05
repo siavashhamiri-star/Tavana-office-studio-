@@ -41,6 +41,10 @@ class AvaRepository {
         }
     }
 
+    fun updateSongs(newSongs: List<Song>) {
+        _songs.value = newSongs
+    }
+
     companion object {
         val sampleSongs = listOf(
             Song(
