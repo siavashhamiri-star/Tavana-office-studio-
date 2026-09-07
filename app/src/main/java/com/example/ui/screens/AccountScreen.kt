@@ -385,19 +385,19 @@ fun AccountScreen(
                     Icon(
                         imageVector = Icons.Default.Security,
                         contentDescription = null,
-                        tint = Color(0xFF3182CE),
+                        tint = Color(0xFF38A169),
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "امنیت و معماری Backend",
+                            text = "امنیت و اتوماسیون کلیدهای API",
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "هیچ کلید خصوصی در کلاینت قرار ندارد. تایید رسیدهای خرید و احراز هویت پیامکی از طریق Gateway امن سرور انجام می‌شود.",
+                            text = "کلیدهای API به صورت کاملاً خودکار و امن از طریق Secrets Gradle Plugin و متغیرهای محیطی (.env / Secrets Panel) بدون هاردکد در سورس‌کد تزریق شده‌اند.",
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

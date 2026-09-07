@@ -33,9 +33,8 @@ class MusicLibraryManager(private val context: Context) {
             AcousticTrackDefinition(
                 id = "song_morgh_sahar",
                 title = "Morgh-e Sahar (مرغ سحر)",
-                artist = "Morteza Neydavoud",
+                artist = "Morteza Neydavoud / Shajarian",
                 durationSeconds = 60,
-                // Melodic frequency progression in Dastgah-e Dashti / Bayat-e Raje
                 notes = listOf(
                     392.00 to 1.5, // G4
                     440.00 to 1.5, // A4
@@ -46,14 +45,16 @@ class MusicLibraryManager(private val context: Context) {
                     466.16 to 2.0, // Bb4
                     440.00 to 3.0  // A4
                 ),
-                harmonyType = HarmonyType.TRADITIONAL_PERSIAN_ACOUSTIC
+                harmonyType = HarmonyType.TRADITIONAL_PERSIAN_ACOUSTIC,
+                category = "سنتی",
+                language = "fa",
+                tags = listOf("سنتی", "دشتی", "نی داوود", "شجریان", "قمرالملوک", "ایرانی", "persian", "traditional")
             ),
             AcousticTrackDefinition(
                 id = "song_soltane_ghalbha",
                 title = "Soltan-e Ghalbha (سلطان قلب‌ها)",
                 artist = "Aref / Anoushiravan Rohani",
                 durationSeconds = 60,
-                // Melodic progression of Soltan-e Ghalbha
                 notes = listOf(
                     329.63 to 1.0, // E4
                     392.00 to 1.0, // G4
@@ -65,7 +66,79 @@ class MusicLibraryManager(private val context: Context) {
                     392.00 to 2.0, // G4
                     369.99 to 2.5  // F#4
                 ),
-                harmonyType = HarmonyType.MELODIC_PIANO_BALLAD
+                harmonyType = HarmonyType.MELODIC_PIANO_BALLAD,
+                category = "پاپ",
+                language = "fa",
+                tags = listOf("پاپ", "عارف", "روحانی", "عاشقانه", "نوستالژی", "persian", "pop")
+            ),
+            AcousticTrackDefinition(
+                id = "song_gole_sangam",
+                title = "Gole Sangam (گل سنگم)",
+                artist = "Hayedeh / Anoushiravan Rohani",
+                durationSeconds = 55,
+                notes = listOf(
+                    392.00 to 1.5, // G4
+                    440.00 to 1.5, // A4
+                    466.16 to 1.5, // Bb4
+                    523.25 to 2.0, // C5
+                    493.88 to 2.0, // B4
+                    440.00 to 2.5  // A4
+                ),
+                harmonyType = HarmonyType.MELODIC_PIANO_BALLAD,
+                category = "پاپ",
+                language = "fa",
+                tags = listOf("هایده", "گل سنگم", "روحانی", "کلاسیک", "خاطره‌انگیز", "persian", "pop")
+            ),
+            AcousticTrackDefinition(
+                id = "song_jane_maryam",
+                title = "Jane Maryam (جان مریم)",
+                artist = "Mohammad Nouri",
+                durationSeconds = 50,
+                notes = listOf(
+                    329.63 to 2.0, // E4
+                    392.00 to 2.0, // G4
+                    440.00 to 2.5, // A4
+                    392.00 to 1.5, // G4
+                    329.63 to 2.5  // E4
+                ),
+                harmonyType = HarmonyType.WARM_ACOUSTIC_CHORDS,
+                category = "فولکلور",
+                language = "fa",
+                tags = listOf("نوری", "محمد نوری", "جان مریم", "نازنین مریم", "فولکلور", "گیلکی", "persian")
+            ),
+            AcousticTrackDefinition(
+                id = "song_ey_iran",
+                title = "Ey Iran (ای ایران)",
+                artist = "Gholam-Hossein Banan / Ruhollah Khaleqi",
+                durationSeconds = 50,
+                notes = listOf(
+                    440.00 to 1.5, // A4
+                    493.88 to 1.5, // B4
+                    523.25 to 2.0, // C5
+                    587.33 to 2.5, // D5
+                    523.25 to 2.0  // C5
+                ),
+                harmonyType = HarmonyType.TRADITIONAL_PERSIAN_ACOUSTIC,
+                category = "ملی و میهنی",
+                language = "fa",
+                tags = listOf("ایران", "سرود", "بنان", "خالقی", "میهنی", "persian")
+            ),
+            AcousticTrackDefinition(
+                id = "song_soghati",
+                title = "Soghati (سوغاتی - وقتی میای)",
+                artist = "Hayedeh / Mohammad Heydari",
+                durationSeconds = 55,
+                notes = listOf(
+                    349.23 to 1.5, // F4
+                    392.00 to 1.5, // G4
+                    440.00 to 2.0, // A4
+                    493.88 to 2.0, // B4
+                    440.00 to 2.5  // A4
+                ),
+                harmonyType = HarmonyType.MELODIC_PIANO_BALLAD,
+                category = "پاپ",
+                language = "fa",
+                tags = listOf("سوغاتی", "هایده", "وقتی میای", "حیدری", "اردلان سرفراز", "persian")
             ),
             AcousticTrackDefinition(
                 id = "song_golden_sunset",
@@ -78,7 +151,10 @@ class MusicLibraryManager(private val context: Context) {
                     392.00 to 2.0, // G4
                     523.25 to 3.0  // C5
                 ),
-                harmonyType = HarmonyType.WARM_ACOUSTIC_CHORDS
+                harmonyType = HarmonyType.WARM_ACOUSTIC_CHORDS,
+                category = "آکوستیک",
+                language = "en",
+                tags = listOf("acoustic", "guitar", "sunset", "english", "ballad")
             ),
             AcousticTrackDefinition(
                 id = "song_radiant_stage",
@@ -91,7 +167,44 @@ class MusicLibraryManager(private val context: Context) {
                     659.25 to 1.5, // E5
                     880.00 to 2.0  // A5
                 ),
-                harmonyType = HarmonyType.STUDIO_BEAT_CHORDS
+                harmonyType = HarmonyType.STUDIO_BEAT_CHORDS,
+                category = "استودیو",
+                language = "en",
+                tags = listOf("stage", "modern", "pop", "inspiration", "english")
+            ),
+            AcousticTrackDefinition(
+                id = "song_fly_me_to_the_moon",
+                title = "Fly Me to the Moon",
+                artist = "Frank Sinatra / Bart Howard",
+                durationSeconds = 45,
+                notes = listOf(
+                    440.00 to 1.5, // A4
+                    392.00 to 1.0, // G4
+                    349.23 to 1.0, // F4
+                    329.63 to 1.5, // E4
+                    293.66 to 2.0  // D4
+                ),
+                harmonyType = HarmonyType.WARM_ACOUSTIC_CHORDS,
+                category = "بین‌المللی",
+                language = "en",
+                tags = listOf("jazz", "sinatra", "moon", "english", "standard", "international")
+            ),
+            AcousticTrackDefinition(
+                id = "song_bella_ciao",
+                title = "Bella Ciao (بلا چاو)",
+                artist = "Italian Folk Acoustic",
+                durationSeconds = 45,
+                notes = listOf(
+                    220.00 to 1.0, // A3
+                    293.66 to 1.0, // D4
+                    329.63 to 1.0, // E4
+                    349.23 to 1.0, // F4
+                    293.66 to 1.5  // D4
+                ),
+                harmonyType = HarmonyType.STUDIO_BEAT_CHORDS,
+                category = "بین‌المللی",
+                language = "it",
+                tags = listOf("italian", "folk", "bella ciao", "money heist", "international")
             )
         )
 
@@ -106,7 +219,10 @@ class MusicLibraryManager(private val context: Context) {
                 artist = def.artist,
                 instrumentalPath = wavFile.absolutePath,
                 lyricsPath = "local://${def.id}.lrc",
-                durationMs = (def.durationSeconds * 1000).toLong()
+                durationMs = (def.durationSeconds * 1000).toLong(),
+                category = def.category,
+                language = def.language,
+                tags = def.tags
             )
         }
     }
@@ -233,7 +349,10 @@ class MusicLibraryManager(private val context: Context) {
         val artist: String,
         val durationSeconds: Int,
         val notes: List<Pair<Double, Double>>, // Frequency (Hz) to Duration (Sec)
-        val harmonyType: HarmonyType
+        val harmonyType: HarmonyType,
+        val category: String = "سنتی",
+        val language: String = "fa",
+        val tags: List<String> = emptyList()
     )
 
     private enum class HarmonyType {

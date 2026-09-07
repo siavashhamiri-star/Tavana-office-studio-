@@ -6,5 +6,8 @@ data class Song(
     val artist: String,
     val instrumentalPath: String,
     val lyricsPath: String?,
-    val durationMs: Long
+    val durationMs: Long,
+    val category: String = "Persian",
+    val language: String = "fa",
+    val tags: List<String> = emptyList()
 )
