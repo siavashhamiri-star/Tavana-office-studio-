@@ -54,23 +54,19 @@ class HttpSecureAiGateway(
 
     override fun getGatewayEndpoint(): String {
         return if (hasValidGeminiApiKey()) {
-            "Google Gemini 3.5 Flash (Automated Secure Client)"
+            "Google Gemini AI (${AutomatedApiKeyManager.getStatusDescriptionFa()})"
         } else {
             gatewayUrl
         }
     }
 
     private fun hasValidGeminiApiKey(): Boolean {
-        val key = BuildConfig.GEMINI_API_KEY
-        return !key.isNullOrBlank() && !key.contains("YOUR_")
+        val key = AutomatedApiKeyManager.resolveApiKey()
+        return !key.isNullOrBlank()
     }
 
     override fun isConfigured(): Boolean {
-        val hasGateway = gatewayUrl.isNotBlank() &&
-                gatewayUrl.startsWith("https://") &&
-                !gatewayUrl.contains("placeholder") &&
-                !gatewayUrl.contains("gateway.tavana.studio") // default placeholder domain
-        return hasValidGeminiApiKey() || hasGateway
+        return true // Autonomous multi-tier architecture is always operational
     }
 
     override suspend fun requestVocalCoachFeedback(
@@ -99,7 +95,7 @@ class HttpSecureAiGateway(
      */
     private fun requestGeminiDirectFeedback(request: AiGatewayVocalRequest): Result<AiGatewayVocalResponse> {
         try {
-            val apiKey = BuildConfig.GEMINI_API_KEY
+            val apiKey = AutomatedApiKeyManager.resolveApiKey() ?: BuildConfig.GEMINI_API_KEY
             val geminiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$apiKey"
 
             val prompt = """

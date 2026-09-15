@@ -66,8 +66,8 @@ class AiSongComposer(private val context: Context) {
         val songId = "ai_song_${System.currentTimeMillis()}"
         val outputFile = File(composerStorageDir, "${songId}.wav")
 
-        val apiKey = BuildConfig.GEMINI_API_KEY
-        val hasKey = !apiKey.isNullOrBlank() && !apiKey.contains("YOUR_")
+        val apiKey = com.tavana.studio.ai.gateway.AutomatedApiKeyManager.resolveApiKey()
+        val hasKey = !apiKey.isNullOrBlank()
 
         var title = ""
         var lyrics = ""
