@@ -73,6 +73,42 @@ android {
   }
 }
 
+// Defensive normalization for .env:
+// secrets-gradle-plugin 2.0.1 has a bug where empty values (e.g. GEMINI_API_KEY=)
+// return "" without quotes, generating invalid Java `public static final String GEMINI_API_KEY = ;`
+val envFile = rootProject.file(".env")
+val exampleFile = rootProject.file(".env.example")
+if (!envFile.exists() && exampleFile.exists()) {
+  envFile.writeText(exampleFile.readText())
+} else if (envFile.exists()) {
+  var hasGeminiKey = false
+  var modified = false
+  val sanitizedLines = envFile.readLines().map { line ->
+    val trimmed = line.trim()
+    if (trimmed.isNotEmpty() && !trimmed.startsWith("#") && trimmed.contains("=")) {
+      val parts = trimmed.split("=", limit = 2)
+      val key = parts[0].trim()
+      val value = parts[1].trim().removeSurrounding("\"").removeSurrounding("'")
+      if (key == "GEMINI_API_KEY") hasGeminiKey = true
+      if (value.isEmpty()) {
+        modified = true
+        "$key=YOUR_${key}"
+      } else {
+        line
+      }
+    } else {
+      line
+    }
+  }.toMutableList()
+  if (!hasGeminiKey) {
+    sanitizedLines.add("GEMINI_API_KEY=YOUR_GEMINI_API_KEY")
+    modified = true
+  }
+  if (modified) {
+    envFile.writeText(sanitizedLines.joinToString("\n") + "\n")
+  }
+}
+
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
 // to match the convention used in Web projects.
 secrets {
