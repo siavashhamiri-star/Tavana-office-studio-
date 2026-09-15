@@ -1,21 +1,33 @@
-name: TAVANA AVA Android Build
+name: TAVANA Studio Android Build (APK & AAB)
 
 on:
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build Type (all, debug, release)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - debug
+          - release
   push:
     branches:
       - main
+    tags:
+      - 'v*'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-android:
-    name: Build APK and AAB
+    name: Build APK and AAB for GitHub
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Setup JDK 21
@@ -37,9 +49,9 @@ jobs:
       - name: Make Gradle executable
         run: chmod +x ./gradlew
 
-      - name: Ensure Debug Keystore Exists
+      - name: Ensure Keystore Exists
         run: |
-          echo "=== Setting up debug keystore ==="
+          echo "=== Setting up Android signing keystore ==="
           if [ -f debug.keystore.base64 ]; then
             echo "Restoring debug.keystore from debug.keystore.base64..."
             base64 -d debug.keystore.base64 > debug.keystore
@@ -49,53 +61,100 @@ jobs:
           fi
           test -f debug.keystore && ls -lh debug.keystore
 
-      - name: Configure Client AI Gateway Environment (.env)
+      - name: Configure Environment (.env)
         env:
           AI_GATEWAY_URL: ${{ secrets.AI_GATEWAY_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          echo "=== Configuring Client AI Gateway Environment ==="
-          if [ -n "$AI_GATEWAY_URL" ]; then
-            echo "AI_GATEWAY_URL=$AI_GATEWAY_URL" > .env
-            echo "AI_GATEWAY_ENV=production" >> .env
-            echo "AI_GATEWAY_URL configured from repository secrets."
+          echo "=== Configuring Android Environment ==="
+          if [ -n "$GEMINI_API_KEY" ]; then
+            echo "GEMINI_API_KEY=$GEMINI_API_KEY" > .env
           elif [ -f .env.example ]; then
             cp .env.example .env
-            echo "Initialized .env from .env.example template."
           else
-            echo "AI_GATEWAY_URL=https://gateway.tavana.studio/api/v1/ai" > .env
+            echo "GEMINI_API_KEY=" > .env
+          fi
+          if [ -n "$AI_GATEWAY_URL" ]; then
+            echo "AI_GATEWAY_URL=$AI_GATEWAY_URL" >> .env
             echo "AI_GATEWAY_ENV=production" >> .env
           fi
+          cat .env
 
-      - name: Show Gradle version
-        run: ./gradlew --version
-
-      - name: Run unit tests
+      - name: Run Unit Tests
         run: ./gradlew :app:testDebugUnitTest --stacktrace --no-daemon
 
-      - name: Build Debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace --no-daemon
-
-      - name: Build AAB Bundle
-        run: ./gradlew :app:bundleDebug --stacktrace --no-daemon
-
-      - name: Verify APK and AAB
+      - name: Build Debug APK & AAB
         run: |
-          echo "=== Verifying Artifacts ==="
-          test -f app/build/outputs/apk/debug/app-debug.apk && ls -lh app/build/outputs/apk/debug/app-debug.apk
-          test -f app/build/outputs/bundle/debug/app-debug.aab && ls -lh app/build/outputs/bundle/debug/app-debug.aab
+          echo "=== Building Debug Binaries ==="
+          ./gradlew :app:assembleDebug :app:bundleDebug --stacktrace --no-daemon
 
-      - name: Upload APK
+      - name: Build Release APK & AAB
+        run: |
+          echo "=== Building Release Binaries ==="
+          ./gradlew :app:assembleRelease :app:bundleRelease --stacktrace --no-daemon
+
+      - name: Export and Collect Artifacts
+        run: |
+          echo "=== Exporting Artifacts to build-artifacts directory ==="
+          ./gradlew :app:exportArtifacts --stacktrace --no-daemon
+          mkdir -p build-artifacts
+          # Ensure files are copied if not already
+          cp -u app/build/outputs/apk/debug/*.apk build-artifacts/TAVANA-Studio-debug.apk || true
+          cp -u app/build/outputs/apk/release/*.apk build-artifacts/TAVANA-Studio-release.apk || true
+          cp -u app/build/outputs/bundle/debug/*.aab build-artifacts/TAVANA-Studio-debug.aab || true
+          cp -u app/build/outputs/bundle/release/*.aab build-artifacts/TAVANA-Studio-release.aab || true
+          echo "=== Generated Build Artifacts ==="
+          ls -lh build-artifacts/
+
+      - name: Upload All Build Artifacts (APK & AAB)
         uses: actions/upload-artifact@v4
         with:
-          name: TAVANA-AVA-debug-APK
+          name: TAVANA-Studio-All-Binaries
+          path: build-artifacts/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TAVANA-Studio-debug-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14
 
-      - name: Upload AAB
+      - name: Upload Debug AAB (Google Play Bundle)
         uses: actions/upload-artifact@v4
         with:
-          name: TAVANA-AVA-debug-AAB
+          name: TAVANA-Studio-debug-AAB
           path: app/build/outputs/bundle/debug/app-debug.aab
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TAVANA-Studio-release-APK
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload Release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: TAVANA-Studio-release-AAB
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build-artifacts/TAVANA-Studio-release.apk
+            build-artifacts/TAVANA-Studio-release.aab
+            build-artifacts/TAVANA-Studio-debug.apk
+            build-artifacts/TAVANA-Studio-debug.aab
+          draft: false
+          prerelease: false
+          generate_release_notes: true

@@ -25,6 +25,8 @@ import com.example.ui.components.AvaNavDestination
 import com.example.ui.components.CoinShopDialog
 import com.example.ui.components.FeatureGateDialog
 import com.example.ui.components.PhoneAuthDialog
+import com.example.ui.components.OnlineSongPickerSheet
+import com.example.ui.components.AiComposerDialog
 import com.example.ui.screens.AccountScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.KaraokeStageScreen
@@ -135,7 +137,9 @@ fun AvaApp(
                                         onPlayRecordingTake = { take ->
                                             viewModel.playRecordingTake(take)
                                         },
-                                        playingRecordingId = uiState.playingRecordingId
+                                        playingRecordingId = uiState.playingRecordingId,
+                                        onOpenOnlineSongs = { viewModel.openOnlineSongPicker() },
+                                        onOpenAiComposer = { viewModel.openAiComposer() }
                                     )
                                 }
                                 AvaNavDestination.PRACTICE -> {
@@ -254,6 +258,32 @@ fun AvaApp(
                                 Text("متوجه شدم")
                             }
                         }
+                    )
+                }
+
+                // Online Song Picker Bottom Sheet
+                if (uiState.isOnlineSongPickerOpen) {
+                    OnlineSongPickerSheet(
+                        onlineTracks = uiState.onlineSongCatalog,
+                        isLoading = uiState.isOnlineTrackLoading,
+                        onSelectTrack = { viewModel.selectOnlineTrack(it) },
+                        onLoadCustomUrl = { url, title -> viewModel.loadCustomOnlineUrl(url, title) },
+                        onDismiss = { viewModel.closeOnlineSongPicker() }
+                    )
+                }
+
+                // AI Composer Dialog (Gemini AI Songwriting & Melodic Engine)
+                if (uiState.isAiComposerOpen) {
+                    AiComposerDialog(
+                        isGenerating = uiState.isAiSongGenerating,
+                        generatedResult = uiState.aiComposedSongResult,
+                        isPlayingMelody = uiState.isAiMelodyPlaying,
+                        onGenerateSong = { prompt, style, mood, lang ->
+                            viewModel.generateAiSong(prompt, style, mood, lang)
+                        },
+                        onTogglePlayMelody = { viewModel.togglePlayAiMelody() },
+                        onLoadToStageForRecording = { viewModel.loadAiSongToStageForRecording(it) },
+                        onDismiss = { viewModel.closeAiComposer() }
                     )
                 }
             }

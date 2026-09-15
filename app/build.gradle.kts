@@ -1,4 +1,5 @@
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
+import java.io.File
 
 plugins {
   alias(libs.plugins.android.application)
@@ -26,10 +27,19 @@ android {
   signingConfigs {
     create("release") {
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
+      val keyStoreFile = file(keystorePath)
+      if (keyStoreFile.exists() && !System.getenv("STORE_PASSWORD").isNullOrBlank()) {
+        storeFile = keyStoreFile
+        storePassword = System.getenv("STORE_PASSWORD")
+        keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
+        keyPassword = System.getenv("KEY_PASSWORD") ?: System.getenv("STORE_PASSWORD")
+      } else {
+        // Safe fallback to debug.keystore for CI and developer builds
+        storeFile = file("${rootDir}/debug.keystore")
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+      }
     }
     create("debugConfig") {
       storeFile = file("${rootDir}/debug.keystore")
@@ -138,3 +148,39 @@ dependencies {
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
 }
+
+// Convenience task to copy and organize APK and AAB binaries into a root build-artifacts folder
+tasks.register("exportArtifacts") {
+  description = "Collects generated APK and AAB files into root build-artifacts directory"
+  group = "build"
+  doLast {
+    val exportDir = File("${rootDir}/build-artifacts")
+    exportDir.mkdirs()
+    val buildOutputsDir = layout.buildDirectory.asFile.get()
+    
+    // Debug outputs
+    val debugApk = File(buildOutputsDir, "outputs/apk/debug/app-debug.apk")
+    if (debugApk.exists()) {
+      debugApk.copyTo(File(exportDir, "TAVANA-Studio-debug.apk"), overwrite = true)
+      logger.lifecycle("Exported Debug APK to build-artifacts/TAVANA-Studio-debug.apk")
+    }
+    val debugAab = File(buildOutputsDir, "outputs/bundle/debug/app-debug.aab")
+    if (debugAab.exists()) {
+      debugAab.copyTo(File(exportDir, "TAVANA-Studio-debug.aab"), overwrite = true)
+      logger.lifecycle("Exported Debug AAB to build-artifacts/TAVANA-Studio-debug.aab")
+    }
+    
+    // Release outputs
+    val releaseApk = File(buildOutputsDir, "outputs/apk/release/app-release.apk")
+    if (releaseApk.exists()) {
+      releaseApk.copyTo(File(exportDir, "TAVANA-Studio-release.apk"), overwrite = true)
+      logger.lifecycle("Exported Release APK to build-artifacts/TAVANA-Studio-release.apk")
+    }
+    val releaseAab = File(buildOutputsDir, "outputs/bundle/release/app-release.aab")
+    if (releaseAab.exists()) {
+      releaseAab.copyTo(File(exportDir, "TAVANA-Studio-release.aab"), overwrite = true)
+      logger.lifecycle("Exported Release AAB to build-artifacts/TAVANA-Studio-release.aab")
+    }
+  }
+}
+

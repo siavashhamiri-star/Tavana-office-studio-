@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.rounded.GraphicEq
@@ -62,7 +63,8 @@ fun AvaScoreDialog(
     onSingAgain: () -> Unit,
     onDismiss: () -> Unit,
     onPlayRecording: (() -> Unit)? = null,
-    isPlayingRecordedTake: Boolean = false
+    isPlayingRecordedTake: Boolean = false,
+    onShareTake: (() -> Unit)? = null
 ) {
     var animatedScoreProgress by remember { mutableFloatStateOf(0f) }
 
@@ -187,6 +189,17 @@ fun AvaScoreDialog(
                     modifier = Modifier.fillMaxWidth(),
                     testTag = "score_save_take"
                 )
+
+                if (onShareTake != null) {
+                    Spacer(modifier = Modifier.height(AvaTheme.spacing.small))
+                    AvaSecondaryButton(
+                        text = "Share Recording (اشتراک‌گذاری)",
+                        icon = Icons.Default.Share,
+                        onClick = onShareTake,
+                        modifier = Modifier.fillMaxWidth(),
+                        testTag = "score_share_take"
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(AvaTheme.spacing.small))
 

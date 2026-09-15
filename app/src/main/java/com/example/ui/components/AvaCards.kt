@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.MusicNote
@@ -217,6 +218,7 @@ fun AvaRecordingCard(
     onPlayToggle: () -> Unit,
     onDetailsClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onShareClick: (() -> Unit)? = null,
     testTag: String = "ava_recording_card_${recording.id}"
 ) {
     AvaCard(
@@ -276,30 +278,58 @@ fun AvaRecordingCard(
                 }
             }
 
-            // Score Badge (Celebration Gold / Coral)
-            Box(
-                modifier = Modifier
-                    .clip(AvaTheme.shapes.chipShape)
-                    .background(AvaTheme.colors.stageSurfaceElevated)
-                    .border(1.dp, AvaTheme.colors.brandHighlight.copy(alpha = 0.5f), AvaTheme.shapes.chipShape)
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = null,
-                        tint = AvaTheme.colors.scoreBadge,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "${recording.overallScore}%",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+            Spacer(modifier = Modifier.width(AvaTheme.spacing.small))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Share action
+                if (onShareClick != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(AvaTheme.colors.stageSurfaceElevated)
+                            .clickable(onClick = onShareClick)
+                            .semantics {
+                                this.role = Role.Button
+                                this.contentDescription = "Share recording"
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "اشتراک‌گذاری",
+                            tint = AvaTheme.colors.brandPrimary,
+                            modifier = Modifier.size(18.dp)
                         )
-                    )
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+
+                // Score Badge (Celebration Gold / Coral)
+                Box(
+                    modifier = Modifier
+                        .clip(AvaTheme.shapes.chipShape)
+                        .background(AvaTheme.colors.stageSurfaceElevated)
+                        .border(1.dp, AvaTheme.colors.brandHighlight.copy(alpha = 0.5f), AvaTheme.shapes.chipShape)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = AvaTheme.colors.scoreBadge,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${recording.overallScore}%",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        )
+                    }
                 }
             }
         }

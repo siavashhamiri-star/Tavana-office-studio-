@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -26,6 +27,7 @@ import com.example.ui.components.AvaRecordingCard
 import com.example.ui.theme.AvaTheme
 import com.tavana.karaoke.domain.model.RecordingTake
 import com.tavana.karaoke.domain.model.Song
+import com.tavana.studio.audio.sharing.ShareHelper
 
 /**
  * AVA Recordings Screen — Displays saved takes and performance logs.
@@ -39,6 +41,8 @@ fun RecordingsScreen(
     playingTakeId: String? = null,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -88,6 +92,9 @@ fun RecordingsScreen(
                     },
                     onDetailsClick = {
                         onPlayRecordingTake(take)
+                    },
+                    onShareClick = {
+                        ShareHelper.shareRecordingTake(context, take)
                     }
                 )
             }

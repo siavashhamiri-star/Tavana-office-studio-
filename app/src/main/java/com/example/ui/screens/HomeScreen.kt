@@ -19,6 +19,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.rounded.GraphicEq
@@ -47,6 +49,7 @@ import com.example.ui.components.AvaCard
 import com.example.ui.components.AvaRecordingCard
 import com.example.ui.components.AvaSongCard
 import com.example.ui.components.AvaStageHeroButton
+import com.example.ui.theme.AvaGoldenHighlight
 import com.example.ui.theme.AvaSunsetCoral
 import com.example.ui.theme.AvaTheme
 import com.tavana.karaoke.domain.model.PracticeExercise
@@ -76,6 +79,8 @@ fun HomeScreen(
     isRtlActive: Boolean,
     onPlayRecordingTake: (RecordingTake) -> Unit = {},
     playingRecordingId: String? = null,
+    onOpenOnlineSongs: () -> Unit = {},
+    onOpenAiComposer: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -180,6 +185,92 @@ fun HomeScreen(
                 label = "Start Singing",
                 subLabel = "Step into the spotlight with synchronized lyrics"
             )
+        }
+
+        // Studio Innovations: AI Composer & Online Song Catalog
+        item(key = "home_innovations_row") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AvaTheme.spacing.medium)
+            ) {
+                // AI Composer Card
+                AvaCard(
+                    onClick = onOpenAiComposer,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("btn_open_ai_composer"),
+                    borderColor = AvaGoldenHighlight.copy(alpha = 0.5f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(vertical = AvaTheme.spacing.small)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(AvaGoldenHighlight.copy(alpha = 0.18f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = AvaGoldenHighlight,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(AvaTheme.spacing.small))
+                        Text(
+                            text = "AI Composer",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "آهنگساز هوش مصنوعی",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                            color = AvaGoldenHighlight
+                        )
+                    }
+                }
+
+                // Online Catalog & Stream Card
+                AvaCard(
+                    onClick = onOpenOnlineSongs,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("btn_open_online_songs"),
+                    borderColor = AvaTheme.colors.brandPrimary.copy(alpha = 0.5f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(vertical = AvaTheme.spacing.small)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(AvaTheme.colors.brandPrimary.copy(alpha = 0.18f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CloudDownload,
+                                contentDescription = null,
+                                tint = AvaTheme.colors.brandPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(AvaTheme.spacing.small))
+                        Text(
+                            text = "Online Stream",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "موسیقی وب و استریم",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                            color = AvaTheme.colors.brandPrimary
+                        )
+                    }
+                }
+            }
         }
 
         // 2. PRACTICE SPOTLIGHT: Daily Vocal Warmup

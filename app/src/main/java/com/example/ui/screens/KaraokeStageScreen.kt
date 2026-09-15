@@ -25,7 +25,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.MusicNote
@@ -54,9 +56,13 @@ import com.example.ui.components.AvaLyricsView
 import com.example.ui.components.AvaPlaybackBar
 import com.example.ui.components.AvaRecordControlPanel
 import com.example.ui.components.AvaScoreDialog
+import com.example.ui.theme.AvaGoldenHighlight
+import com.example.ui.theme.AvaSunsetCoral
 import com.example.ui.theme.AvaTheme
 import com.example.ui.viewmodel.AvaUiState
+import com.tavana.karaoke.domain.model.RecordingTake
 import com.tavana.karaoke.domain.model.Song
+import com.tavana.studio.audio.sharing.ShareHelper
 
 /**
  * Active Karaoke Stage Screen.
@@ -290,7 +296,10 @@ fun KaraokeStageScreen(
                 onSingAgain = onSingAgain,
                 onDismiss = onDismissScoreDialog,
                 onPlayRecording = onPlayRecordedTake,
-                isPlayingRecordedTake = uiState.playingRecordingId != null
+                isPlayingRecordedTake = uiState.playingRecordingId != null,
+                onShareTake = uiState.lastRecordedTake?.let { take ->
+                    { ShareHelper.shareRecording(context, take) }
+                }
             )
         }
     }

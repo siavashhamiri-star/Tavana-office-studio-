@@ -58,6 +58,10 @@ import com.tavana.studio.audio.engine.AndroidAudioPlaybackEngine
 import com.tavana.studio.audio.engine.AndroidAudioRecordingEngine
 import com.tavana.studio.audio.engine.VoiceMonitoringEngine
 import com.tavana.studio.audio.library.MusicLibraryManager
+import com.tavana.studio.audio.library.OnlineMusicManager
+import com.tavana.studio.audio.library.OnlineTrackItem
+import com.tavana.studio.ai.composer.AiSongComposer
+import com.tavana.studio.ai.composer.AiSongResult
 import com.tavana.studio.account.AccountRepository
 import com.tavana.studio.account.AuthResult
 import com.tavana.studio.account.CoinBundle
@@ -137,7 +141,15 @@ data class AvaUiState(
     val purchaseStatus: PurchaseStatus = PurchaseStatus.IDLE,
     val billingMessage: String? = null,
     val availablePlans: List<MarketplaceSubscriptionPlan> = MarketplacePlanCatalog.ALL_PLANS,
-    val isPlansDialogOpen: Boolean = false
+    val isPlansDialogOpen: Boolean = false,
+    val isOnlineSongPickerOpen: Boolean = false,
+    val isAiComposerOpen: Boolean = false,
+    val isAiSongGenerating: Boolean = false,
+    val aiComposedSongResult: AiSongResult? = null,
+    val isAiMelodyPlaying: Boolean = false,
+    val isOnlineTrackLoading: Boolean = false,
+    val onlineSongCatalog: List<OnlineTrackItem> = emptyList(),
+    val lastRecordedTake: RecordingTake? = null
 )
 
 data class ActiveFeatureGateState(
@@ -203,6 +215,9 @@ class AvaViewModel(
     private var takePlaybackEngine: AudioPlaybackEngine? = null
     private var voiceMonitoringEngine: VoiceMonitoringEngine? = null
     private var musicLibraryManager: MusicLibraryManager? = null
+    private var onlineMusicManager: OnlineMusicManager? = null
+    private var aiSongComposer: AiSongComposer? = null
+    private var melodyPlaybackEngine: AudioPlaybackEngine? = null
     private var appFilesDir: File? = null
     private var recordingLevelJob: Job? = null
 
@@ -225,6 +240,13 @@ class AvaViewModel(
             try {
                 val libManager = MusicLibraryManager(appContext)
                 musicLibraryManager = libManager
+
+                val onlineMgr = OnlineMusicManager(appContext)
+                onlineMusicManager = onlineMgr
+
+                val composer = AiSongComposer(appContext)
+                aiSongComposer = composer
+
                 val verifiedSongs = libManager.getVerifiedMusicCatalog()
                 if (verifiedSongs.isNotEmpty()) {
                     repository.updateSongs(verifiedSongs)
@@ -234,9 +256,12 @@ class AvaViewModel(
                         it.copy(
                             isMusicLibraryReady = true,
                             activeSong = matched,
-                            activeLyrics = repository.getLyricsForSong(matched.id)
+                            activeLyrics = repository.getLyricsForSong(matched.id),
+                            onlineSongCatalog = onlineMgr.curatedOnlineTracks
                         )
                     }
+                } else {
+                    _uiState.update { it.copy(onlineSongCatalog = onlineMgr.curatedOnlineTracks) }
                 }
 
                 val monitor = VoiceMonitoringEngine()
@@ -249,6 +274,7 @@ class AvaViewModel(
                 activeRecordingEngine = recEngine
 
                 takePlaybackEngine = AndroidAudioPlaybackEngine(appContext, viewModelScope)
+                melodyPlaybackEngine = AndroidAudioPlaybackEngine(appContext, viewModelScope)
 
                 // Re-observe live microphone level
                 recordingLevelJob?.cancel()
@@ -564,7 +590,7 @@ class AvaViewModel(
                 referenceId = currentSong.id,
                 scoreResult = detScore
             )
-            _uiState.update { it.copy(voiceProfile = updatedProfile, activeScoreDialog = null) }
+            _uiState.update { it.copy(voiceProfile = updatedProfile, activeScoreDialog = null, lastRecordedTake = newTake) }
         }
     }
 
@@ -1083,6 +1109,134 @@ class AvaViewModel(
         }
     }
 
+    fun openOnlineSongPicker() {
+        _uiState.update { it.copy(isOnlineSongPickerOpen = true) }
+    }
+
+    fun closeOnlineSongPicker() {
+        _uiState.update { it.copy(isOnlineSongPickerOpen = false) }
+    }
+
+    fun openAiComposer() {
+        _uiState.update { it.copy(isAiComposerOpen = true) }
+    }
+
+    fun closeAiComposer() {
+        melodyPlaybackEngine?.stop()
+        _uiState.update { it.copy(isAiComposerOpen = false, isAiMelodyPlaying = false) }
+    }
+
+    fun selectOnlineTrack(track: OnlineTrackItem) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isOnlineTrackLoading = true) }
+            try {
+                val mgr = onlineMusicManager ?: return@launch
+                val resolvedSong = mgr.resolveOnlineTrackToSong(track)
+                val lyrics = mgr.getLyricsForTrack(track)
+
+                val existing = songs.value.toMutableList()
+                if (existing.none { it.id == resolvedSong.id }) {
+                    existing.add(0, resolvedSong)
+                    repository.updateSongs(existing)
+                }
+
+                launchSongOnStage(resolvedSong)
+                _uiState.update {
+                    it.copy(
+                        isOnlineSongPickerOpen = false,
+                        isOnlineTrackLoading = false,
+                        activeSong = resolvedSong,
+                        activeLyrics = lyrics
+                    )
+                }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isOnlineTrackLoading = false) }
+            }
+        }
+    }
+
+    fun loadCustomOnlineUrl(url: String, title: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isOnlineTrackLoading = true) }
+            try {
+                val mgr = onlineMusicManager ?: return@launch
+                val resolvedSong = mgr.loadCustomUrlTrack(url, title)
+                val existing = songs.value.toMutableList()
+                existing.add(0, resolvedSong)
+                repository.updateSongs(existing)
+                launchSongOnStage(resolvedSong)
+                _uiState.update {
+                    it.copy(
+                        isOnlineSongPickerOpen = false,
+                        isOnlineTrackLoading = false,
+                        activeSong = resolvedSong,
+                        activeLyrics = emptyList()
+                    )
+                }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isOnlineTrackLoading = false) }
+            }
+        }
+    }
+
+    fun generateAiSong(prompt: String, style: String, mood: String, language: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isAiSongGenerating = true) }
+            try {
+                val composer = aiSongComposer ?: return@launch
+                val result = composer.composeSong(prompt, style, mood, language)
+                result.onSuccess { aiSong ->
+                    _uiState.update {
+                        it.copy(
+                            isAiSongGenerating = false,
+                            aiComposedSongResult = aiSong
+                        )
+                    }
+                }.onFailure {
+                    _uiState.update { it.copy(isAiSongGenerating = false) }
+                }
+            } catch (_: Exception) {
+                _uiState.update { it.copy(isAiSongGenerating = false) }
+            }
+        }
+    }
+
+    fun togglePlayAiMelody() {
+        val aiSong = _uiState.value.aiComposedSongResult ?: return
+        val playEngine = melodyPlaybackEngine ?: return
+        val isPlaying = _uiState.value.isAiMelodyPlaying
+        if (isPlaying) {
+            playEngine.stop()
+            _uiState.update { it.copy(isAiMelodyPlaying = false) }
+        } else {
+            viewModelScope.launch {
+                playEngine.prepare(aiSong.audioFilePath)
+                playEngine.play()
+                _uiState.update { it.copy(isAiMelodyPlaying = true) }
+            }
+        }
+    }
+
+    fun loadAiSongToStageForRecording(aiSong: AiSongResult) {
+        melodyPlaybackEngine?.stop()
+        val composer = aiSongComposer ?: return
+        val song = composer.convertToSong(aiSong)
+
+        val existing = songs.value.toMutableList()
+        existing.add(0, song)
+        repository.updateSongs(existing)
+
+        launchSongOnStage(song)
+        _uiState.update {
+            it.copy(
+                isAiComposerOpen = false,
+                isAiMelodyPlaying = false,
+                activeSong = song,
+                activeLyrics = aiSong.lyricsLines
+            )
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         playbackJob?.cancel()
@@ -1092,6 +1246,7 @@ class AvaViewModel(
         activeRecordingEngine.release()
         activePlaybackEngine.release()
         takePlaybackEngine?.release()
+        melodyPlaybackEngine?.release()
         voiceMonitoringEngine?.release()
     }
 }
