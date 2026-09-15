@@ -17,10 +17,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Security
@@ -410,7 +410,7 @@ fun AccountScreen(
         item(key = "sign_out_button") {
             AvaSecondaryButton(
                 text = "خروج از حساب / حالت مهمان",
-                icon = Icons.Default.Logout,
+                icon = Icons.AutoMirrored.Filled.Logout,
                 onClick = onSignOut,
                 modifier = Modifier.fillMaxWidth(),
                 testTag = "btn_sign_out"

@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.QueueMusic
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -78,7 +78,7 @@ fun RecordingsScreen(
                     message = "You haven't recorded any vocal takes yet. Step onto the stage and sing your heart out!",
                     actionLabel = "Start Singing",
                     onActionClick = onNavigateToStage,
-                    icon = Icons.Rounded.QueueMusic
+                    icon = Icons.AutoMirrored.Rounded.QueueMusic
                 )
             }
         } else {
