@@ -3,6 +3,7 @@ package com.example.ui.screens
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.GraphicEq
@@ -46,6 +48,8 @@ import com.example.ui.components.AvaIconButton
 import com.example.ui.components.AvaPracticeCard
 import com.example.ui.components.AvaPrimaryButton
 import com.example.ui.components.AvaWaveformVisualizer
+import com.example.ui.components.ContextualQuickGuideCard
+import com.example.ui.components.StudioStepByStepGuideDialog
 import com.example.ui.theme.AvaGoldenHighlight
 import com.example.ui.theme.AvaSunsetCoral
 import com.example.ui.theme.AvaTheme
@@ -63,33 +67,84 @@ fun PracticeScreen(
     modifier: Modifier = Modifier
 ) {
     var isDrillActive by remember { mutableStateOf(false) }
+    var showPracticeGuide by remember { mutableStateOf(false) }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .testTag("ava_practice_screen"),
-        contentPadding = PaddingValues(
-            start = AvaTheme.spacing.medium,
-            end = AvaTheme.spacing.medium,
-            top = AvaTheme.spacing.medium,
-            bottom = 96.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(AvaTheme.spacing.large)
-    ) {
-        item(key = "practice_header") {
-            Column {
-                Text(
-                    text = "Vocal Practice & Warmup",
-                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "Refine intonation, resonance, and breath control",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("ava_practice_screen"),
+            contentPadding = PaddingValues(
+                start = AvaTheme.spacing.medium,
+                end = AvaTheme.spacing.medium,
+                top = AvaTheme.spacing.medium,
+                bottom = 96.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(AvaTheme.spacing.large)
+        ) {
+            item(key = "practice_header") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Vocal Practice & Warmup",
+                            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Refine intonation, resonance, and breath control",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Surface(
+                        shape = AvaTheme.shapes.chipShape,
+                        color = AvaGoldenHighlight.copy(alpha = 0.18f),
+                        modifier = Modifier
+                            .clip(AvaTheme.shapes.chipShape)
+                            .clickable { showPracticeGuide = true }
+                            .border(1.dp, AvaGoldenHighlight.copy(alpha = 0.6f), AvaTheme.shapes.chipShape)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.HelpOutline,
+                                contentDescription = null,
+                                tint = AvaGoldenHighlight,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "راهنما",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = AvaGoldenHighlight
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Contextual Guide Card
+            item(key = "practice_quick_guide") {
+                ContextualQuickGuideCard(
+                    title = "راهنمای گام‌به‌گام گرم کردن صدا",
+                    subtitle = "۳ گام ساده برای جلوگیری از خستگی حنجره و تثبیت کوک",
+                    steps = listOf(
+                        "یکی از تمرینات وسعت صدا یا آرپژ را از لیست زیر انتخاب کنید.",
+                        "نت پخش‌شده را گوش کنید و همزمان تلاش کنید روی همان فرکانس بخوانید.",
+                        "نشانگر موج صوتی به شما نشان می‌دهد آیا صدایتان دقیقاً روی پرده نشسته است."
+                    ),
+                    onOpenFullGuide = { showPracticeGuide = true }
                 )
             }
-        }
 
         // Active Pitch Tuner / Drill Card
         item(key = "practice_tuner_card") {
@@ -212,5 +267,13 @@ fun PracticeScreen(
                 }
             )
         }
+    }
+
+    // Step-by-Step Interactive Guide Dialog
+    StudioStepByStepGuideDialog(
+        isOpen = showPracticeGuide,
+        onDismiss = { showPracticeGuide = false },
+        initialStepIndex = 5
+    )
     }
 }

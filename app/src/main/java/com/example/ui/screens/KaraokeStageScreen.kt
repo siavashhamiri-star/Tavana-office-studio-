@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.rounded.Headphones
@@ -36,6 +37,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +61,8 @@ import com.example.ui.components.AvaLyricsView
 import com.example.ui.components.AvaPlaybackBar
 import com.example.ui.components.AvaRecordControlPanel
 import com.example.ui.components.AvaScoreDialog
+import com.example.ui.components.ContextualQuickGuideCard
+import com.example.ui.components.StudioStepByStepGuideDialog
 import com.example.ui.theme.AvaGoldenHighlight
 import com.example.ui.theme.AvaSunsetCoral
 import com.example.ui.theme.AvaTheme
@@ -91,6 +98,7 @@ fun KaraokeStageScreen(
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    var showStageGuide by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -171,7 +179,16 @@ fun KaraokeStageScreen(
                     }
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    AvaIconButton(
+                        icon = Icons.Default.HelpOutline,
+                        contentDescription = "راهنمای گام‌به‌گام صحنه",
+                        onClick = { showStageGuide = true },
+                        testTag = "stage_help_button"
+                    )
                     AvaIconButton(
                         icon = Icons.Default.Translate,
                         contentDescription = "Toggle Persian RTL view",
@@ -180,6 +197,19 @@ fun KaraokeStageScreen(
                     )
                 }
             }
+
+            // In-Stage Quick Guide
+            ContextualQuickGuideCard(
+                title = "راهنمای اجرای روی صحنه",
+                subtitle = "نکات کلیدی برای اجرای بهتر و ضبط بدون نقص",
+                steps = listOf(
+                    "متن شعر به صورت همگام با ضرباهنگ تغییر رنگ می‌دهد.",
+                    "برای شروع ضبط صدای خود، دکمه قرمز پایین صفحه را فشار دهید.",
+                    "هدفون وصل کنید و دکمه «شنیدن زنده صدای خواننده» را بزنید تا صدایتان در گوش پخش شود."
+                ),
+                onOpenFullGuide = { showStageGuide = true },
+                iconTint = AvaSunsetCoral
+            )
 
             // Real-time Lyrics View
             AvaLyricsView(
@@ -302,5 +332,11 @@ fun KaraokeStageScreen(
                 }
             )
         }
+        // Step-by-Step Guide Dialog
+        StudioStepByStepGuideDialog(
+            isOpen = showStageGuide,
+            onDismiss = { showStageGuide = false },
+            initialStepIndex = 1
+        )
     }
 }

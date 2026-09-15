@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MusicNote
@@ -50,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -63,6 +65,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.AvaCard
 import com.example.ui.components.AvaPrimaryButton
+import com.example.ui.components.ContextualQuickGuideCard
+import com.example.ui.components.StudioStepByStepGuideDialog
 import com.example.ui.theme.AvaGoldenHighlight
 import com.example.ui.theme.AvaScoreHigh
 import com.example.ui.theme.AvaSunsetCoral
@@ -86,34 +90,85 @@ fun StudioScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    var showStudioGuide by remember { mutableStateOf(false) }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .testTag("tavana_studio_screen"),
-        contentPadding = PaddingValues(
-            start = AvaTheme.spacing.medium,
-            end = AvaTheme.spacing.medium,
-            top = AvaTheme.spacing.medium,
-            bottom = 96.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(AvaTheme.spacing.large)
-    ) {
-        // Studio Header
-        item(key = "studio_header") {
-            Column {
-                Text(
-                    text = "TAVANA Studio",
-                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "Your Digital Life & Work — Audio Foundation & Workspace",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("tavana_studio_screen"),
+            contentPadding = PaddingValues(
+                start = AvaTheme.spacing.medium,
+                end = AvaTheme.spacing.medium,
+                top = AvaTheme.spacing.medium,
+                bottom = 96.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(AvaTheme.spacing.large)
+        ) {
+            // Studio Header
+            item(key = "studio_header") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "TAVANA Studio",
+                            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Your Digital Life & Work — Audio Foundation & Workspace",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Surface(
+                        shape = AvaTheme.shapes.chipShape,
+                        color = AvaGoldenHighlight.copy(alpha = 0.18f),
+                        modifier = Modifier
+                            .clip(AvaTheme.shapes.chipShape)
+                            .clickable { showStudioGuide = true }
+                            .border(1.dp, AvaGoldenHighlight.copy(alpha = 0.6f), AvaTheme.shapes.chipShape)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.HelpOutline,
+                                contentDescription = null,
+                                tint = AvaGoldenHighlight,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "راهنما",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = AvaGoldenHighlight
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Quick Step-by-Step Guide
+            item(key = "studio_quick_guide") {
+                ContextualQuickGuideCard(
+                    title = "راهنمای تنظیمات استودیو و افکت‌ها",
+                    subtitle = "چگونه صدایی شفاف، گرم و حرفه‌ای ایجاد کنید",
+                    steps = listOf(
+                        "با اسلایدر Reverb به صدای ضبط‌شده طنین و فضای کنسرتی بدهید.",
+                        "ولوم صدای وکال را با موزیک پس‌زمینه بالانس کنید تا صدای کلمات شفاف بماند.",
+                        "از دکمه خروجی پروژه، فایل استودیویی نهایی را برای اشتراک آماده کنید."
+                    ),
+                    onOpenFullGuide = { showStudioGuide = true }
                 )
             }
-        }
 
         // STEP 2: Workspace Architectural Boundaries
         item(key = "workspace_selector_card") {
@@ -503,6 +558,14 @@ fun StudioScreen(
                 }
             }
         }
+    }
+
+    // Step-by-Step Interactive Guide Dialog
+    StudioStepByStepGuideDialog(
+        isOpen = showStudioGuide,
+        onDismiss = { showStudioGuide = false },
+        initialStepIndex = 4
+    )
     }
 }
 
